@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>{{ title }}</h2>
+<form method="POST" action="{{ url_for('main.add_coaching') }}" novalidate>
+    {{ form.hidden_tag() }}
+
+    <div class="form-row">
+        <div class="form-group col-md-6">
+            {{ form.team_member_id.label(class="form-control-label") }}
+            {{ form.team_member_id(class="form-control " + ("is-invalid" if form.team_member_id.errors else "")) }}
+            {% if form.team_member_id.errors %}
+                <div class="invalid-feedback">
+                    {% for error in form.team_member_id.errors %}<span>{{ error }}</span>{% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        <div class="form-group col-md-6">
+            {{ form.coaching_style.label(class="form-control-label") }}
+            {{ form.coaching_style(class="form-control " + ("is-invalid" if form.coaching_style.errors else "")) }}
+            {% if form.coaching_style.errors %}
+                <div class="invalid-feedback">
+                    {% for error in form.coaching_style.errors %}<span>{{ error }}</span>{% endfor %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="form-group" id="tcap_id_field" style="display: none;"> <!-- Wird per JS gesteuert -->
+        {{ form.tcap_id.label(class="form-control-label") }}
+        {{ form.tcap_id(class="form-control " + ("is-invalid" if form.tcap_id.errors else "")) }}
+        {% if form.tcap_id.errors %}
+            <div class="invalid-feedback">
+                {% for error in form.tcap_id.errors %}<span>{{ error }}</span>{% endfor %}
+            </div>
+        {% endif %}
+    </div>
+
+    <hr>
+    <h4>Leitfaden Checkmarks</h4>
+    <div class="form-row">
+        <div class="form-group col-md-3">
+            {{ form.leitfaden_begruessung.label(class="form-control-label") }}
+            {{ form.leitfaden_begruessung(class="form-control custom-select") }}
+        </div>
+        <div class="form-group col-md-3">
+            {{ form.leitfaden_legitimation.label(class="form-control-label") }}
+            {{ form.leitfaden_legitimation(class="form-control custom-select") }}
+        </div>
+        <div class="form-group col-md-3">
+            {{ form.leitfaden_pka.label(class="form-control-label") }}
+            {{ form.leitfaden_pka(class="form-control custom-select") }}
+        </div>
+         <div class="form-group col-md-3">
+            {{ form.leitfaden_kek.label(class="form-control-label") }}
+            {{ form.leitfaden_kek(class="form-control custom-select") }}
+        </div>
+    </div>
+    <div class="form-row">
+        <div class="form-group col-md-4">
+            {{ form.leitfaden_angebot.label(class="form-control-label") }}
+            {{ form.leitfaden_angebot(class="form-control custom-select") }}
+        </div>
+        <div class="form-group col-md-4">
+            {{ form.leitfaden_zusammenfassung.label(class="form-control-label") }}
+            {{ form.leitfaden_zusammenfassung(class="form-control custom-select") }}
+        </div>
+        <div class="form-group col-md-4">
+            {{ form.leitfaden_kzb.label(class="form-control-label") }}
+            {{ form.leitfaden_kzb(class="form-control custom-select") }}
+        </div>
+    </div>
+    <hr>
+
+    <div class="form-row">
+        <div class="form-group col-md-6">
+            {{ form.performance_mark.label(class="form-control-label") }}
+            {{ form.performance_mark(class="form-control " + ("is-invalid" if form.performance_mark.errors else "")) }}
+            {% if form.performance_mark.errors %}
+                <div class="invalid-feedback">
+                    {% for error in form.performance_mark.errors %}<span>{{ error }}</span>{% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        <div class="form-group col-md-6">
+            {{ form.time_spent.label(class="form-control-label") }}
+            {{ form.time_spent(class="form-control " + ("is-invalid" if form.time_spent.errors else "")) }}
+            {% if form.time_spent.errors %}
+                <div class="invalid-feedback">
+                    {% for error in form.time_spent.errors %}<span>{{ error }}</span>{% endfor %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="form-group">
+        {{ form.submit(class="btn telekom-button") }}
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    {{ tcap_js|safe }} {# Fügt das JavaScript aus der Route ein #}
+</script>
+{% endblock %}

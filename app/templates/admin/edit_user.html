@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header telekom-bg-magenta text-white">
+                 <h2>{{ title }}: {{ user.username }}</h2>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('admin.edit_user', user_id=user.id) }}" novalidate>
+                    {{ form.hidden_tag() }}
+
+                    <div class="form-group">
+                        {{ form.username.label(class="form-control-label") }}
+                        {{ form.username(class="form-control " + ("is-invalid" if form.username.errors else "")) }}
+                        {% if form.username.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.username.errors %}<span>{{ error }}</span>{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        {{ form.email.label(class="form-control-label") }}
+                        {{ form.email(class="form-control " + ("is-invalid" if form.email.errors else "")) }}
+                        {% if form.email.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.email.errors %}<span>{{ error }}</span>{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        {{ form.password.label(class="form-control-label") }} (Leer lassen, um nicht zu ändern)
+                        {{ form.password(class="form-control " + ("is-invalid" if form.password.errors else ""), placeholder="Neues Passwort") }}
+                        {% if form.password.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.password.errors %}<span>{{ error }}</span>{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        {{ form.password2.label(class="form-control-label") }} (Leer lassen, um nicht zu ändern)
+                        {{ form.password2(class="form-control " + ("is-invalid" if form.password2.errors else ""), placeholder="Neues Passwort bestätigen") }}
+                        {% if form.password2.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.password2.errors %}<span>{{ error }}</span>{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        {{ form.role.label(class="form-control-label") }}
+                        {{ form.role(class="form-control custom-select " + ("is-invalid" if form.role.errors else "")) }}
+                        {% if form.role.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.role.errors %}<span>{{ error }}</span>{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group" id="team_select_div_user_edit">
+                        {{ form.team_id.label(class="form-control-label") }}
+                        {{ form.team_id(class="form-control custom-select " + ("is-invalid" if form.team_id.errors else "")) }}
+                        <small class="form-text text-muted">Relevant, wenn Rolle 'Teamleiter' ist. 'Kein Team' wählen, um Zuweisung aufzuheben.</small>
+                        {% if form.team_id.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.team_id.errors %}<span>{{ error }}</span>{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        {{ form.submit(class="btn telekom-button") }}
+                        <a href="{{ url_for('admin.panel') }}" class="btn btn-secondary">Abbrechen</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

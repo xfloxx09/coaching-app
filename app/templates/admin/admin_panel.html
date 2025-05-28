@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ title }}</h1>
+<p>Willkommen im Admin-Bereich. Hier können Sie Benutzer, Teams und Teammitglieder verwalten.</p>
+
+<!-- Benutzerverwaltung -->
+<h2>Benutzer <a href="{{ url_for('admin.create_user') }}" class="btn btn-sm telekom-button">+ Neu</a></h2>
+<table class="table table-sm">
+    <thead><tr><th>ID</th><th>Benutzername</th><th>Email</th><th>Rolle</th><th>Team (als TL)</th><th>Aktionen</th></tr></thead>
+    <tbody>
+    {% for user in users %}
+    <tr>
+        <td>{{ user.id }}</td>
+        <td>{{ user.username }}</td>
+        <td>{{ user.email }}</td>
+        <td>{{ user.role }}</td>
+        <td>{{ user.led_team.name if user.led_team else '-' }}</td>
+        <td>
+            <a href="{{ url_for('admin.edit_user', user_id=user.id) }}" class="btn btn-xs btn-outline-secondary">Bearbeiten</a>
+            {% if user.username != 'admin' and user.id != current_user.id %}
+            <form action="{{ url_for('admin.delete_user', user_id=user.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Benutzer wirklich löschen?');">
+                <input type="submit" value="Löschen" class="btn btn-xs btn-danger">
+            </form>
+            {% endif %}
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<!-- Teamverwaltung -->
+<h2 class="mt-4">Teams <a href="{{ url_for('admin.create_team') }}" class="btn btn-sm telekom-button">+ Neu</a></h2>
+<table class="table table-sm">
+     <thead><tr><th>ID</th><th>Name</th><th>Teamleiter</th><th>Mitglieder</th><th>Aktionen</th></tr></thead>
+     <tbody>
+     {% for team in teams %}
+     <tr>
+        <td>{{ team.id }}</td>
+        <td>{{ team.name }}</td>
+        <td>{{ team.team_leader.username if team.team_leader else 'Kein Leiter' }}</td>
+        <td>{{ team.members.count() }}</td>
+        <td>
+            <a href="{{ url_for('admin.edit_team', team_id=team.id) }}" class="btn btn-xs btn-outline-secondary">Bearbeiten</a>
+            <form action="{{ url_for('admin.delete_team', team_id=team.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Team wirklich löschen? ACHTUNG: Nur wenn keine Mitglieder mehr zugeordnet sind!');">
+                <input type="submit" value="Löschen" class="btn btn-xs btn-danger">
+            </form>
+        </td>
+     </tr>
+     {% endfor %}
+     </tbody>
+</table>
+
+<!-- Teammitgliedverwaltung -->
+<h2 class="mt-4">Teammitglieder <a href="{{ url_for('admin.create_team_member') }}" class="btn btn-sm telekom-button">+ Neu</a></h2>
+<table class="table table-sm">
+     <thead><tr><th>ID</th><th>Name</th><th>Team</th><th>Aktionen</th></tr></thead>
+     <tbody>
+     {% for member in team_members %}
+     <tr>
+        <td>{{ member.id }}</td>
+        <td>{{ member.name }}</td>
+        <td>{{ member.team.name if member.team else 'Kein Team' }}</td>
+         <td>
+            <a href="{{ url_for('admin.edit_team_member', member_id=member.id) }}" class="btn btn-xs btn-outline-secondary">Bearbeiten</a>
+            <form action="{{ url_for('admin.delete_team_member', member_id=member.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Teammitglied wirklich löschen? ACHTUNG: Nur wenn keine Coachings zugeordnet sind!');">
+                <input type="submit" value="Löschen" class="btn btn-xs btn-danger">
+            </form>
+        </td>
+     </tr>
+     {% endfor %}
+     </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>{{ title }}</h2>
+<p>Hier können Sie Notizen zu bestehenden Coachings hinzufügen.</p>
+
+{% if coachings_paginated and coachings_paginated.items %}
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="telekom-bg-magenta text-white">
+                <tr>
+                    <th>Datum</th>
+                    <th>Teammitglied</th>
+                    <th>Coach</th>
+                    <th>Score (%)</th>
+                    <th>Notiz</th>
+                    <th>Aktion</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for coaching in coachings_paginated.items %}
+                <tr>
+                    <td>{{ coaching.coaching_date.strftime('%d.%m.%Y %H:%M') }}</td>
+                    <td>{{ coaching.team_member_coached.name }}</td>
+                    <td>{{ coaching.coach.username }}</td>
+                    <td>{{ coaching.overall_score }}%</td>
+                    <td id="notes-display-{{ coaching.id }}">
+                        {{ coaching.project_leader_notes[:50] + '...' if coaching.project_leader_notes and coaching.project_leader_notes|length > 50 else coaching.project_leader_notes if coaching.project_leader_notes else 'Keine Notiz' }}
+                    </td>
+                    <td>
+                        <button class="btn btn-sm telekom-button-outline" type="button" data-toggle="modal" data-target="#noteModal-{{ coaching.id }}">
+                            Notiz {{ 'bearbeiten' if coaching.project_leader_notes else 'hinzufügen' }}
+                        </button>
+                    </td>
+                </tr>
+                <!-- Modal für Notizen -->
+                <div class="modal fade" id="noteModal-{{ coaching.id }}" tabindex="-1" role="dialog" aria-labelledby="noteModalLabel-{{ coaching.id }}" aria-hidden="true">
+                    <div class="modal-dialog" role="document">
+                        <div class="modal-content">
+                            <form method="POST" action="{{ url_for('main.projektleiter_dashboard', page=coachings_paginated.page) }}">
+                                {{ note_form.hidden_tag() }}
+                                {{ note_form.coaching_id(value=coaching.id) }}
+                                <div class="modal-header telekom-bg-magenta text-white">
+                                    <h5 class="modal-title" id="noteModalLabel-{{ coaching.id }}">Notiz für Coaching #{{ coaching.id }}</h5>
+                                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                                        <span aria-hidden="true">×</span>
+                                    </button>
+                                </div>
+                                <div class="modal-body">
+                                    <p><strong>Teammitglied:</strong> {{ coaching.team_member_coached.name }}<br>
+                                       <strong>Coach:</strong> {{ coaching.coach.username }}<br>
+                                       <strong>Datum:</strong> {{ coaching.coaching_date.strftime('%d.%m.%Y %H:%M') }}</p>
+                                    <div class="form-group">
+                                        {{ note_form.notes.label(class="form-control-label") }}
+                                        {{ note_form.notes(class="form-control", rows=5, value=coaching.project_leader_notes if coaching.project_leader_notes else "") }}
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Abbrechen</button>
+                                    <button type="submit" name="submit_note" class="btn telekom-button">Notiz speichern</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <!-- Paginierung (kopiert von index.html, ggf. anpassen) -->
+    <nav aria-label="Coaching Navigation">
+         <ul class="pagination justify-content-center">
+            {% if coachings_paginated.has_prev %}
+                <li class="page-item"><a class="page-link telekom-page-link" href="{{ url_for('main.projektleiter_dashboard', page=coachings_paginated.prev_num) }}">Vorherige</a></li>
+            {% else %}
+                <li class="page-item disabled"><span class="page-link">Vorherige</span></li>
+            {% endif %}
+            {% for page_num in coachings_paginated.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                {% if page_num %}
+                    {% if coachings_paginated.page == page_num %}
+                        <li class="page-item active"><span class="page-link telekom-page-active">{{ page_num }}</span></li>
+                    {% else %}
+                        <li class="page-item"><a class="page-link telekom-page-link" href="{{ url_for('main.projektleiter_dashboard', page=page_num) }}">{{ page_num }}</a></li>
+                    {% endif %}
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% endif %}
+            {% endfor %}
+            {% if coachings_paginated.has_next %}
+                <li class="page-item"><a class="page-link telekom-page-link" href="{{ url_for('main.projektleiter_dashboard', page=coachings_paginated.next_num) }}">Nächste</a></li>
+            {% else %}
+                <li class="page-item disabled"><span class="page-link">Nächste</span></li>
+            {% endif %}
+        </ul>
+    </nav>
+{% else %}
+    <p>Keine Coachings vorhanden.</p>
+{% endif %}
+{% endblock %}

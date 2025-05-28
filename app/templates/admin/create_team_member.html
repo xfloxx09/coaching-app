@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header telekom-bg-magenta text-white">
+                <h2>{{ title }}</h2>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('admin.create_team_member') }}" novalidate>
+                    {{ form.hidden_tag() }}
+
+                    <div class="form-group">
+                        {{ form.name.label(class="form-control-label") }}
+                        {{ form.name(class="form-control " + ("is-invalid" if form.name.errors else ""), placeholder="Vollständiger Name des Teammitglieds") }}
+                        {% if form.name.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.name.errors %}<span>{{ error }}</span>{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        {{ form.team_id.label(class="form-control-label") }}
+                        {{ form.team_id(class="form-control custom-select " + ("is-invalid" if form.team_id.errors else "")) }}
+                        {% if form.team_id.choices[0][0] == 0 and form.team_id.choices[0][1] == "Bitte zuerst Teams erstellen" %}
+                            <small class="form-text text-danger">Es müssen zuerst Teams im System angelegt werden.</small>
+                        {% endif %}
+                        {% if form.team_id.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.team_id.errors %}<span>{{ error }}</span>{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        {{ form.submit(class="btn telekom-button") }}
+                        <a href="{{ url_for('admin.panel') }}" class="btn btn-secondary">Abbrechen</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

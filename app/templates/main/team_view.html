@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>{{ title }}</h2>
+
+{% if team %}
+    <div class="row">
+        <div class="col-md-6">
+            <h3>Team Informationen</h3>
+            <p><strong>Team Name:</strong> {{ team.name }}</p>
+            <p><strong>Teamleiter:</strong> {{ team.team_leader.username if team.team_leader else "Nicht zugewiesen" }}</p>
+            <p><strong>Anzahl Mitglieder:</strong> {{ team.members.count() }}</p>
+        </div>
+        <div class="col-md-6">
+            <h3>Team Performance (Ø Score)</h3>
+            {% if team_members_performance %}
+                {% for member_perf in team_members_performance %}
+                <p>
+                    <strong>{{ member_perf.name }}:</strong> {{ member_perf.avg_score }}%
+                    (aus {{ member_perf.total_coachings }} Coachings, {{ member_perf.total_coaching_time }} Min.)
+                    <div class="progress" style="height: 20px;">
+                        <div class="progress-bar telekom-progress-bar" role="progressbar" style="width: {{ member_perf.avg_score }}%;" aria-valuenow="{{ member_perf.avg_score }}" aria-valuemin="0" aria-valuemax="100">
+                            {{ member_perf.avg_score }}%
+                        </div>
+                    </div>
+                </p>
+                {% endfor %}
+            {% else %}
+                <p>Keine Performance-Daten verfügbar.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <h3 class="mt-4">Letzte Coachings des Teams (max. 20)</h3>
+    {% if team_coachings %}
+    <div class="table-responsive">
+        <table class="table table-sm table-striped">
+            <thead class="telekom-bg-magenta text-white">
+                <tr>
+                    <th>Datum</th>
+                    <th>Mitglied</th>
+                    <th>Coach</th>
+                    <th>Score</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for coaching in team_coachings %}
+                <tr>
+                    <td>{{ coaching.coaching_date.strftime('%d.%m.%y %H:%M') }}</td>
+                    <td>{{ coaching.team_member_coached.name }}</td>
+                    <td>{{ coaching.coach.username }}</td>
+                    <td>{{ coaching.overall_score }}%</td>
+                    <td>
+                         <button class="btn btn-sm telekom-button-outline" type="button" data-toggle="collapse" data-target="#coachingDetailsTeam{{ coaching.id }}" aria-expanded="false" aria-controls="coachingDetailsTeam{{ coaching.id }}">
+                            Details
+                        </button>
+                    </td>
+                </tr>
+                <tr class="collapse" id="coachingDetailsTeam{{ coaching.id }}">
+                    <td colspan="5">
+                        <div class="card card-body">
+                            <strong>Stil:</strong> {{ coaching.coaching_style }} {% if coaching.tcap_id %}(T-CAP ID: {{ coaching.tcap_id }}){% endif %}<br>
+                            <strong>Note:</strong> {{ coaching.performance_mark }}/10 | <strong>Zeit:</strong> {{ coaching.time_spent }} Min.<br>
+                            <strong>Leitfaden:</strong>
+                            B:{{ coaching.leitfaden_begruessung }} |
+                            L:{{ coaching.leitfaden_legitimation }} |
+                            P:{{ coaching.leitfaden_pka }} |
+                            K:{{ coaching.leitfaden_kek }} |
+                            A:{{ coaching.leitfaden_angebot }} |
+                            Z:{{ coaching.leitfaden_zusammenfassung }} |
+                            KZB:{{ coaching.leitfaden_kzb }} <br>
+                            <strong>Leitfaden Erfüllung:</strong> {{ "%.2f"|format(coaching.leitfaden_score_details) }}%
+                            {% if coaching.project_leader_notes %}
+                            <hr>
+                            <strong>Notiz Projektleiter:</strong><br>
+                            <p style="white-space: pre-wrap;">{{ coaching.project_leader_notes }}</p>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+        <p>Keine Coachings für dieses Team vorhanden.</p>
+    {% endif %}
+{% else %}
+    <p>Kein Team zur Anzeige ausgewählt oder vorhanden.</p>
+{% endif %}
+ <a href="{{ url_for('main.add_coaching') }}" class="btn telekom-button mt-3">Neues Coaching hinzufügen</a>
+{% endblock %}
