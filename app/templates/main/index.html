@@ -328,7 +328,29 @@
         drawChartWithMessage(chartCoachingsDoneCtx, {
             type: 'bar', 
             data: { labels: chartLabels, datasets: [{ label: 'Anzahl Coachings', data: chartCoachingsDoneData, backgroundColor: pieColors[2], borderColor: pieColors[2].replace('0.7','1'), borderWidth: 1 }] },
-            options: { ...commonChartOptions, scales: { ...commonChartOptions.scales, y: { ...commonChartOptions.scales.y, ticks: { ...commonChartOptions.scales.y.ticks, stepSize: 1 } } } }
+            options: { 
+                ...commonChartOptions, 
+                scales: { 
+                    ...commonChartOptions.scales, 
+                    y: { 
+                        ...commonChartOptions.scales.y, 
+                        ticks: { ...commonChartOptions.scales.y.ticks, stepSize: 1 },
+                        // NEU: Maximalwert der y-Achse dynamisch setzen
+                        // Nimm den höchsten Wert im Datensatz und addiere etwas Puffer (z.B. 20% oder feste Zahl)
+                        max: chartCoachingsDoneData.length > 0 ? Math.ceil(Math.max(...chartCoachingsDoneData) * 1.2) : 10 // Mindestens 10, falls alle Werte 0 sind
+                    } 
+                },
+                plugins: { // Stelle sicher, dass datalabels hier korrekt konfiguriert ist
+                    ...commonChartOptions.plugins, // Übernimmt legend:false von commonChartOptions
+                    datalabels: {
+                        anchor: 'end',
+                        align: 'top', // Bleibt erstmal so, da die erhöhte Achse helfen sollte
+                        color: textColor,
+                        font: { weight: 'bold' },
+                        formatter: Math.round // Zeigt den reinen Wert
+                    }
+                }
+            }
         });
 
         // 4. Verteilung Coaching-Themen - Kreisdiagramm
