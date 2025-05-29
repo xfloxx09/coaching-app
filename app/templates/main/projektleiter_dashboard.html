@@ -65,7 +65,7 @@
                     <th>Teammitglied</th>
                     <th>Coach</th>
                     <th>Score (%)</th>
-                    <th>Notiz</th>
+                    <th>PL/QM Notiz</th>
                     <th>Aktion</th>
                 </tr>
             </thead>
@@ -79,7 +79,6 @@
                     <td id="notes-display-{{ coaching.id }}">
                         {{ coaching.project_leader_notes[:50] + '...' if coaching.project_leader_notes and coaching.project_leader_notes|length > 50 else coaching.project_leader_notes if coaching.project_leader_notes else 'Keine Notiz' }}
                     </td>
-                    <td>
                         <button class="btn btn-sm telekom-button-outline" type="button" data-toggle="modal" data-target="#noteModal-{{ coaching.id }}">
                             Notiz {{ 'bearbeiten' if coaching.project_leader_notes else 'hinzufügen' }}
                         </button>
