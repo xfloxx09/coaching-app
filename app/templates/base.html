@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title }} - Coaching Tracker</title>
-    <!-- Einfaches Bootstrap für schnelles Styling -->
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Eigenes CSS für Telekom-Theme -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     {% block head_extra %}{% endblock %}
 </head>
@@ -23,7 +21,8 @@
                     {% if current_user.role in ['Teamleiter', 'Qualitätsmanager', 'SalesCoach', 'Trainer', 'Admin'] %}
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('main.add_coaching') }}">Coaching hinzufügen</a></li>
                     {% endif %}
-                    {% if current_user.role == 'Teamleiter' and current_user.team_id %}
+                    {# Korrektur hier: current_user.team_id_if_leader verwenden #}
+                    {% if current_user.role == 'Teamleiter' and current_user.team_id_if_leader %} 
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('main.team_view') }}">Meine Team Ansicht</a></li>
                     {% endif %}
                     {% if current_user.role == 'Projektleiter' %}
@@ -59,7 +58,6 @@
             {% endif %}
         {% endwith %}
         
-        {# HIER IST DER PLATZHALTER FÜR DEN SPEZIFISCHEN INHALT JEDER SEITE #}
         {% block content %}{% endblock %} 
     </div>
 
@@ -70,6 +68,7 @@
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.3/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> {# CHART.JS HINZUGEFÜGT #}
     {% block scripts %}{% endblock %}
 </body>
 </html>
