@@ -6,7 +6,7 @@
     {{ form.hidden_tag() }}
 
     <div class="form-row">
-        <div class="form-group col-md-6">
+        <div class="form-group col-md-4">
             {{ form.team_member_id.label(class="form-control-label") }}
             {{ form.team_member_id(class="form-control " + ("is-invalid" if form.team_member_id.errors else "")) }}
             {% if form.team_member_id.errors %}
@@ -15,12 +15,21 @@
                 </div>
             {% endif %}
         </div>
-        <div class="form-group col-md-6">
+        <div class="form-group col-md-4">
             {{ form.coaching_style.label(class="form-control-label") }}
             {{ form.coaching_style(class="form-control " + ("is-invalid" if form.coaching_style.errors else "")) }}
             {% if form.coaching_style.errors %}
                 <div class="invalid-feedback">
                     {% for error in form.coaching_style.errors %}<span>{{ error }}</span>{% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        <div class="form-group col-md-4">
+            {{ form.coaching_subject.label(class="form-control-label") }}
+            {{ form.coaching_subject(class="form-control custom-select " + ("is-invalid" if form.coaching_subject.errors else "")) }}
+            {% if form.coaching_subject.errors %}
+                <div class="invalid-feedback">
+                    {% for error in form.coaching_subject.errors %}<span>{{ error }}</span>{% endfor %}
                 </div>
             {% endif %}
         </div>
@@ -91,6 +100,16 @@
                 </div>
             {% endif %}
         </div>
+    </div>
+    
+    <div class="form-group">
+        {{ form.coach_notes.label(class="form-control-label") }}
+        {{ form.coach_notes(class="form-control " + ("is-invalid" if form.coach_notes.errors else ""), rows=4, placeholder="Notizen zum Coaching...") }}
+        {% if form.coach_notes.errors %}
+            <div class="invalid-feedback">
+                {% for error in form.coach_notes.errors %}<span>{{ error }}</span>{% endfor %}
+            </div>
+        {% endif %}
     </div>
     
     <div class="form-group">

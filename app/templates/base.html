@@ -1,45 +1,75 @@
-{% extends "base.html" %}
-{% import "bootstrap/wtf.html" as wtf %} <!-- Optional: für schnelleres Formular-Rendering mit Flask-Bootstrap -->
-                                          <!-- Da wir kein Flask-Bootstrap installieren, machen wir es manuell -->
-
-{% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header telekom-bg-magenta text-white">
-                <h1>{{ title }}</h1>
-            </div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('auth.login') }}">
-                    {{ form.hidden_tag() }}
-                    <div class="form-group">
-                        {{ form.username.label(class="form-control-label") }}
-                        {{ form.username(class="form-control " + ("is-invalid" if form.username.errors else "")) }}
-                        {% if form.username.errors %}
-                            <div class="invalid-feedback">
-                                {% for error in form.username.errors %}<span>{{ error }}</span>{% endfor %}
-                            </div>
-                        {% endif %}
-                    </div>
-                    <div class="form-group">
-                        {{ form.password.label(class="form-control-label") }}
-                        {{ form.password(class="form-control " + ("is-invalid" if form.password.errors else "")) }}
-                        {% if form.password.errors %}
-                            <div class="invalid-feedback">
-                                {% for error in form.password.errors %}<span>{{ error }}</span>{% endfor %}
-                            </div>
-                        {% endif %}
-                    </div>
-                    <div class="form-group form-check">
-                        {{ form.remember_me(class="form-check-input") }}
-                        {{ form.remember_me.label(class="form-check-label") }}
-                    </div>
-                    <div class="form-group">
-                        {{ form.submit(class="btn telekom-button btn-block") }}
-                    </div>
-                </form>
-            </div>
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} - Coaching Tracker</title>
+    <!-- Einfaches Bootstrap für schnelles Styling -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Eigenes CSS für Telekom-Theme -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    {% block head_extra %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <a class="navbar-brand telekom-brand" href="{{ url_for('main.index') }}">Coaching Tracker</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav mr-auto">
+                {% if current_user.is_authenticated %}
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('main.index') }}">Dashboard</a></li>
+                    {% if current_user.role in ['Teamleiter', 'Qualitätsmanager', 'SalesCoach', 'Trainer', 'Admin'] %}
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('main.add_coaching') }}">Coaching hinzufügen</a></li>
+                    {% endif %}
+                    {% if current_user.role == 'Teamleiter' and current_user.team_id %}
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('main.team_view') }}">Meine Team Ansicht</a></li>
+                    {% endif %}
+                    {% if current_user.role == 'Projektleiter' %}
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('main.projektleiter_dashboard') }}">PL Dashboard</a></li>
+                    {% endif %}
+                    {% if current_user.role == 'Admin' %}
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.panel') }}">Admin Panel</a></li>
+                    {% endif %}
+                {% endif %}
+            </ul>
+            <ul class="navbar-nav">
+                {% if current_user.is_authenticated %}
+                    <li class="nav-item"><span class="navbar-text" style="color: #e20074; margin-right: 15px;">Angemeldet als: {{ current_user.username }} ({{current_user.role}})</span></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.logout') }}">Abmelden</a></li>
+                {% else %}
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.login') }}">Anmelden</a></li>
+                {% endif %}
+            </ul>
         </div>
+    </nav>
+
+    <div class="container mt-4">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                            <span aria-hidden="true">×</span>
+                        </button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        {# HIER IST DER PLATZHALTER FÜR DEN SPEZIFISCHEN INHALT JEDER SEITE #}
+        {% block content %}{% endblock %} 
     </div>
-</div>
-{% endblock %}
+
+    <footer class="text-center mt-5 mb-3">
+        <p>© {{ current_year }} Deine Firma - Coaching Tracker</p>
+    </footer>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.3/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

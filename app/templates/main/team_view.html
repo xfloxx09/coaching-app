@@ -1,14 +1,43 @@
+{# app/templates/main/team_view.html #}
 {% extends "base.html" %}
 
 {% block content %}
 <h2>{{ title }}</h2>
+
+{# Dropdown zur Teamauswahl für berechtigte Rollen #}
+{% if current_user.role in ['Admin', 'Projektleiter', 'Qualitätsmanager', 'SalesCoach', 'Trainer'] and all_teams_list %}
+<div class="row mb-3">
+    <div class="col-md-6">
+        <form method="GET" action="{{ url_for('main.team_view') }}">
+            <div class="form-group">
+                <label for="team_select">Team auswählen:</label>
+                <select name="team_id" id="team_select" class="form-control custom-select" onchange="this.form.submit()">
+                    <option value="">--- Bitte Team wählen ---</option>
+                    {% for t in all_teams_list %}
+                        <option value="{{ t.id }}" {% if team and team.id == t.id %}selected{% endif %}>
+                            {{ t.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
 
 {% if team %}
     <div class="row">
         <div class="col-md-6">
             <h3>Team Informationen</h3>
             <p><strong>Team Name:</strong> {{ team.name }}</p>
-            <p><strong>Teamleiter:</strong> {{ team.team_leader.username if team.team_leader else "Nicht zugewiesen" }}</p>
+            <p><strong>Teamleiter:</strong> 
+                {% if team.team_leader %}
+                    {{ team.team_leader.username }}
+                {% else %}
+                    <span class="text-muted">Nicht zugewiesen</span>
+                {% endif %}
+            </p>
             <p><strong>Anzahl Mitglieder:</strong> {{ team.members.count() }}</p>
         </div>
         <div class="col-md-6">
@@ -17,7 +46,8 @@
                 {% for member_perf in team_members_performance %}
                 <p>
                     <strong>{{ member_perf.name }}:</strong> {{ member_perf.avg_score }}%
-                    (aus {{ member_perf.total_coachings }} Coachings, {{ member_perf.total_coaching_time }} Min.)
+                    (aus {{ member_perf.total_coachings }} Coaching{{ 's' if member_perf.total_coachings != 1 else '' }}, 
+                    {{ member_perf.total_coaching_time }} Min.)
                     <div class="progress" style="height: 20px;">
                         <div class="progress-bar telekom-progress-bar" role="progressbar" style="width: {{ member_perf.avg_score }}%;" aria-valuenow="{{ member_perf.avg_score }}" aria-valuemin="0" aria-valuemax="100">
                             {{ member_perf.avg_score }}%
@@ -26,13 +56,13 @@
                 </p>
                 {% endfor %}
             {% else %}
-                <p>Keine Performance-Daten verfügbar.</p>
+                <p class="text-muted">Keine Performance-Daten für Mitglieder verfügbar.</p>
             {% endif %}
         </div>
     </div>
 
     <h3 class="mt-4">Letzte Coachings des Teams (max. 20)</h3>
-    {% if team_coachings %}
+    {% if team_coachings %} {# team_coachings ist jetzt team_coachings_list aus der Route #}
     <div class="table-responsive">
         <table class="table table-sm table-striped">
             <thead class="telekom-bg-magenta text-white">
@@ -40,6 +70,7 @@
                     <th>Datum</th>
                     <th>Mitglied</th>
                     <th>Coach</th>
+                    <th>Betreff</th> {# NEU #}
                     <th>Score</th>
                     <th>Details</th>
                 </tr>
@@ -50,6 +81,7 @@
                     <td>{{ coaching.coaching_date.strftime('%d.%m.%y %H:%M') }}</td>
                     <td>{{ coaching.team_member_coached.name }}</td>
                     <td>{{ coaching.coach.username }}</td>
+                    <td>{{ coaching.coaching_subject if coaching.coaching_subject else '-' }}</td> {# NEU #}
                     <td>{{ coaching.overall_score }}%</td>
                     <td>
                          <button class="btn btn-sm telekom-button-outline" type="button" data-toggle="collapse" data-target="#coachingDetailsTeam{{ coaching.id }}" aria-expanded="false" aria-controls="coachingDetailsTeam{{ coaching.id }}">
@@ -58,10 +90,11 @@
                     </td>
                 </tr>
                 <tr class="collapse" id="coachingDetailsTeam{{ coaching.id }}">
-                    <td colspan="5">
+                    <td colspan="6"> {# Colspan auf die neue Anzahl Spalten angepasst #}
                         <div class="card card-body">
                             <strong>Stil:</strong> {{ coaching.coaching_style }} {% if coaching.tcap_id %}(T-CAP ID: {{ coaching.tcap_id }}){% endif %}<br>
-                            <strong>Note:</strong> {{ coaching.performance_mark }}/10 | <strong>Zeit:</strong> {{ coaching.time_spent }} Min.<br>
+                            <strong>Betreff:</strong> {{ coaching.coaching_subject if coaching.coaching_subject else '-' }}<br> {# NEU #}
+                            <strong>Note:</strong> {{ coaching.performance_mark if coaching.performance_mark is not none else '-' }}/10 | <strong>Zeit:</strong> {{ coaching.time_spent if coaching.time_spent is not none else '-' }} Min.<br>
                             <strong>Leitfaden:</strong>
                             B:{{ coaching.leitfaden_begruessung }} |
                             L:{{ coaching.leitfaden_legitimation }} |
@@ -71,6 +104,13 @@
                             Z:{{ coaching.leitfaden_zusammenfassung }} |
                             KZB:{{ coaching.leitfaden_kzb }} <br>
                             <strong>Leitfaden Erfüllung:</strong> {{ "%.2f"|format(coaching.leitfaden_score_details) }}%
+                            
+                            {% if coaching.coach_notes %} {# NEU #}
+                            <hr>
+                            <strong>Notizen des Coaches:</strong><br>
+                            <p style="white-space: pre-wrap;">{{ coaching.coach_notes }}</p>
+                            {% endif %}
+
                             {% if coaching.project_leader_notes %}
                             <hr>
                             <strong>Notiz Projektleiter:</strong><br>
@@ -84,10 +124,19 @@
         </table>
     </div>
     {% else %}
-        <p>Keine Coachings für dieses Team vorhanden.</p>
+        <p class="text-muted">Keine Coachings für dieses Team im ausgewählten Zeitraum vorhanden.</p>
     {% endif %}
-{% else %}
-    <p>Kein Team zur Anzeige ausgewählt oder vorhanden.</p>
+{% elif not all_teams_list and current_user.role not in ['Teamleiter'] %}
+    <p class="text-muted">Keine Teams im System vorhanden.</p>
+{% elif not team and current_user.role in ['Admin', 'Projektleiter', 'Qualitätsmanager', 'SalesCoach', 'Trainer'] %}
+    <p class="text-muted">Bitte wählen Sie oben ein Team aus, um Details anzuzeigen.</p>
+{% elif current_user.role == 'Teamleiter' and not team %} 
+    {# Dieser Fall sollte durch die Umleitung in der Route abgedeckt sein, wenn TL kein Team hat #}
+    <p class="text-muted">Ihnen ist kein Team zugewiesen.</p>
 {% endif %}
- <a href="{{ url_for('main.add_coaching') }}" class="btn telekom-button mt-3">Neues Coaching hinzufügen</a>
+
+{% if current_user.role in ['Teamleiter', 'Qualitätsmanager', 'SalesCoach', 'Trainer', 'Admin'] %}
+    <a href="{{ url_for('main.add_coaching') }}" class="btn telekom-button mt-3">Neues Coaching hinzufügen</a>
+{% endif %}
+
 {% endblock %}
