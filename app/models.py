@@ -75,7 +75,8 @@ class Coaching(db.Model):
     performance_mark = db.Column(db.Integer, nullable=True) 
     time_spent = db.Column(db.Integer, nullable=True) 
     project_leader_notes = db.Column(db.Text, nullable=True)
-
+    is_archived = db.Column(db.Boolean, default=False, nullable=False, index=True) 
+    
     @property
     def leitfaden_fields_list(self): # Hilfs-Property für die Leitfadenfelder
         return [
