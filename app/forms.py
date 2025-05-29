@@ -10,7 +10,7 @@ class LoginForm(FlaskForm):
     remember_me = BooleanField('Angemeldet bleiben')
     submit = SubmitField('Anmelden')
 
-class RegistrationForm(FlaskForm): # Wird für die Admin User Erstellung verwendet
+class RegistrationForm(FlaskForm): 
     username = StringField('Benutzername', validators=[DataRequired("Benutzername ist erforderlich."), Length(min=3, max=64)])
     email = StringField('E-Mail (Optional)') 
     password = PasswordField('Passwort', validators=[DataRequired("Passwort ist erforderlich."), Length(min=6)])
@@ -33,22 +33,17 @@ class RegistrationForm(FlaskForm): # Wird für die Admin User Erstellung verwend
         super(RegistrationForm, self).__init__(*args, **kwargs)
         self.original_username = original_username
         active_teams = Team.query.order_by(Team.name).all()
-        # Baue Choices für Team-Auswahl
-        team_choices = [(0, 'Kein Team (für Nicht-Teamleiter)')] # Standard-Option
+        team_choices = [(0, 'Kein Team (für Nicht-Teamleiter)')] 
         if active_teams:
             team_choices.extend([(t.id, t.name) for t in active_teams])
-        else: # Wenn keine Teams da sind, aber die "Kein Team"-Option nicht die einzige sein soll für die Logik unten
-            if len(team_choices) == 1 and team_choices[0][0] == 0: # Nur die "Kein Team" Option ist da
-                 team_choices.append(("", 'Zuerst Teams erstellen')) # Füge einen Platzhalter hinzu
-                 # Alternativ könnte man das Feld deaktivieren oder eine andere Logik verwenden
-
+        elif len(team_choices) == 1 and team_choices[0][0] == 0:
+             team_choices.append(("", 'Zuerst Teams erstellen'))
         self.team_id.choices = team_choices
-
 
     def validate_username(self, username_field):
         query = User.query.filter(User.username == username_field.data)
         if self.original_username and self.original_username == username_field.data:
-            return # Beim Bearbeiten ist der eigene aktuelle Username okay
+            return
         user = query.first()
         if user:
             raise ValidationError('Dieser Benutzername ist bereits vergeben.')
@@ -75,10 +70,7 @@ class TeamMemberForm(FlaskForm):
         if active_teams:
             self.team_id.choices = [(t.id, t.name) for t in active_teams]
         else:
-            # Wenn keine Teams da sind, ist es schwierig, ein Mitglied zu erstellen.
-            # DataRequired wird hier fehlschlagen.
-            self.team_id.choices = [("", "Bitte zuerst Teams erstellen")]
-
+            self.team_id.choices = [("", "Bitte zuerst Teams erstellen")] # Wert ist leerer String
 
 LEITFADEN_CHOICES = [('Ja', 'Ja'), ('Nein', 'Nein'), ('k.A.', 'k.A.')]
 COACHING_SUBJECT_CHOICES = [
@@ -89,15 +81,12 @@ COACHING_SUBJECT_CHOICES = [
 ]
 
 class CoachingForm(FlaskForm):
-    # coerce=int bleibt, da die IDs der Mitglieder Integer sind.
     team_member_id = SelectField(
         'Teammitglied', 
-        coerce=int, 
+        # coerce wird dynamisch im __init__ gesetzt
         validators=[DataRequired("Teammitglied ist erforderlich.")], 
-        option_widget=None, 
-        # choices werden im __init__ dynamisch gesetzt
+        option_widget=None
     )
-    # ... (Rest der Felder wie coaching_style, coaching_subject etc. bleiben gleich) ...
     coaching_style = SelectField('Coaching Stil', choices=[
         ('Side-by-Side', 'Side-by-Side'),
         ('TCAP', 'TCAP')
@@ -116,56 +105,40 @@ class CoachingForm(FlaskForm):
     coach_notes = TextAreaField('Notizen des Coaches', validators=[Length(max=2000)])
     submit = SubmitField('Coaching speichern')
 
-
     def __init__(self, current_user_role=None, current_user_team_id=None, *args, **kwargs):
         super(CoachingForm, self).__init__(*args, **kwargs)
         
-        generated_choices = [] # Liste für (value, label) Tupel
+        generated_choices = [] 
 
         if current_user_role == 'Teamleiter' and current_user_team_id:
             team_members = TeamMember.query.filter_by(team_id=current_user_team_id).order_by(TeamMember.name).all()
-            if team_members:
-                for m in team_members:
-                    generated_choices.append((m.id, m.name))
-            # Wenn keine Mitglieder, bleibt generated_choices leer
-        
-        else: # Für Nicht-Teamleiter (QM, SalesCoach, Trainer, Admin)
+            for m in team_members:
+                generated_choices.append((m.id, m.name))
+        else: 
             all_teams = Team.query.order_by(Team.name).all()
-            if all_teams:
-                for team_obj in all_teams:
-                    members = TeamMember.query.filter_by(team_id=team_obj.id).order_by(TeamMember.name).all()
-                    if members:
-                        for m in members:
-                            generated_choices.append((m.id, f"{m.name} ({team_obj.name})"))
-            # Wenn keine Teams oder keine Mitglieder, bleibt generated_choices leer
+            for team_obj in all_teams:
+                members = TeamMember.query.filter_by(team_id=team_obj.id).order_by(TeamMember.name).all()
+                for m in members:
+                    generated_choices.append((m.id, f"{m.name} ({team_obj.name})"))
         
-        # Setze die Choices für das Feld
+        has_data_required = any(isinstance(v, DataRequired) for v in self.team_member_id.validators)
+
         if not generated_choices:
-            # Wenn keine validen Mitglieder gefunden wurden, ist es schwierig, DataRequired zu erfüllen.
-            # Eine Option ist, eine nicht-wählbare "Keine Mitglieder"-Option anzubieten,
-            # aber das löst das DataRequired-Problem nicht, wenn es die einzige Option ist.
-            # Besser ist es, das Formular gar nicht erst zu validieren, wenn keine Auswahl möglich ist,
-            # oder eine entsprechende Meldung anzuzeigen.
-            # Für den Moment setzen wir eine leere Choice, die DataRequired fehlschlagen lässt.
-            self.team_member_id.choices = [("", "Keine auswählbaren Mitglieder")]
-            # Und vielleicht eine Meldung in der Route flashen, dass keine Mitglieder da sind.
+            self.team_member_id.choices = [("", "Keine Mitglieder verfügbar")]
+            self.team_member_id.coerce = str # Wichtig, um ValueError beim Rendern zu vermeiden
         else:
-            # Füge eine "Bitte wählen"-Option hinzu, WENN das Feld Pflicht ist (DataRequired)
-            # UND wenn die Liste nicht leer ist UND die erste Option nicht schon ein Platzhalter ist.
-            has_data_required = any(isinstance(v, DataRequired) for v in self.team_member_id.validators)
-            if has_data_required and (not generated_choices or generated_choices[0][0] != ""):
+            self.team_member_id.coerce = int # Standard coerce für gültige IDs
+            if has_data_required:
+                 # Füge "Bitte wählen" nur hinzu, wenn es tatsächliche Optionen gibt
                  self.team_member_id.choices = [("", "--- Bitte wählen ---")] + generated_choices
             else:
                  self.team_member_id.choices = generated_choices
         
-        print(f"DEBUG CoachingForm Init Final Choices: {self.team_member_id.choices[:5]}") # DEBUG
+        print(f"DEBUG CoachingForm Init Final Choices: {self.team_member_id.choices[:5]}, Coerce: {self.team_member_id.coerce}")
 
 
 class ProjectLeaderNoteForm(FlaskForm):
-    # coaching_id wurde hier entfernt, da es manuell im Template als <input type="hidden"> gesendet wird.
-    # Das Formular ist jetzt primär für 'notes' und das CSRF-Token zuständig (das WTForms automatisch handhabt).
-    notes = TextAreaField('PL/QM Notiz', # Label angepasst
+    notes = TextAreaField('PL/QM Notiz', 
                           validators=[DataRequired("Die Notiz darf nicht leer sein."), 
                                       Length(max=2000)])
-    # Submit-Button wird im HTML definiert, daher hier nicht als Feld nötig
-    # submit = SubmitField('Notiz speichern') 
+    # coaching_id und submit werden im Template/Route gehandhabt
