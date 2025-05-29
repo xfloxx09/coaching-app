@@ -216,112 +216,93 @@ def add_coaching():
     """
     return render_template('main/add_coaching.html', title='Coaching hinzufügen', form=form, tcap_js=tcap_js)
 
-@bp.route('/projektleiter_dashboard', methods=['GET', 'POST'])
+# app/main_routes.py
+# ...
+
+# Route umbenannt, um beide Rollen abzudecken
+@bp.route('/coaching_review_dashboard', methods=['GET', 'POST']) # Neuer, generischerer URL-Pfad
 @login_required
-@role_required(ROLE_PROJEKTLEITER)
-def projektleiter_dashboard():
+@role_required([ROLE_PROJEKTLEITER, ROLE_QM]) # Zugriff für beide Rollen
+def pl_qm_dashboard(): # Neuer Funktionsname
     page = request.args.get('page', 1, type=int)
     coachings_query = Coaching.query.order_by(desc(Coaching.coaching_date))
     coachings_paginated = coachings_query.paginate(page=page, per_page=10, error_out=False)
     
     note_form_display = ProjectLeaderNoteForm() 
 
+    dashboard_title = "Review Dashboard" # Standardtitel
+    if current_user.role == ROLE_PROJEKTLEITER:
+        dashboard_title = "Projektleiter Dashboard"
+    elif current_user.role == ROLE_QM:
+        dashboard_title = "Quality Coach Dashboard" # Deutscher Titel
+
     if request.method == 'POST' and 'submit_note' in request.form:
-        print("DEBUG PL_DASH: POST-Request für 'submit_note' erhalten.") # DEBUG
-        print(f"DEBUG PL_DASH: request.form enthält: {request.form}") # DEBUG
-        form_for_validation = ProjectLeaderNoteForm(request.form) 
+        form_to_validate = ProjectLeaderNoteForm(request.form) 
         coaching_id_str = request.form.get('coaching_id')
         form_errors = False
         if not coaching_id_str:
             flash("Coaching-ID fehlt oder konnte nicht übermittelt werden.", 'danger')
-            print("DEBUG PL_DASH: coaching_id_str ist leer oder None.") # DEBUG
             form_errors = True
-        
-        if not form_for_validation.validate():
-            print("DEBUG PL_DASH: form_for_validation Validierung fehlgeschlagen.") # DEBUG
-            for fieldName, errorMessages in form_for_validation.errors.items():
+        if not form_to_validate.validate():
+            for fieldName, errorMessages in form_to_validate.errors.items():
                 for err in errorMessages:
-                    label_text = fieldName
-                    try: label_text = form_for_validation[fieldName].label.text
-                    except: pass
-                    print(f"DEBUG PL_DASH: Fehler im Feld '{label_text}': {err}") # DEBUG
-                    flash(f"Validierungsfehler im Feld '{label_text}': {err}", 'danger')
+                    flash(f"Validierungsfehler im Feld '{form_to_validate[fieldName].label.text}': {err}", 'danger')
             form_errors = True
 
         if not form_errors:
-            notes_data = form_for_validation.notes.data
-            print(f"DEBUG PL_DASH: Validierung erfolgreich. Coaching ID: {coaching_id_str}, Notes (Auszug): {notes_data[:50]}...") # DEBUG
+            notes_data = form_to_validate.notes.data
             try:
                 coaching_id_int = int(coaching_id_str)
                 coaching_to_update = Coaching.query.get_or_404(coaching_id_int)
-                coaching_to_update.project_leader_notes = notes_data
+                # Hier könnten wir später unterscheiden, wer die Notiz geschrieben hat, falls nötig
+                # Für jetzt überschreibt der QM die PL-Notiz und umgekehrt.
+                coaching_to_update.project_leader_notes = notes_data # Feld bleibt dasselbe
                 db.session.commit()
                 flash(f'Notiz für Coaching ID {coaching_id_int} erfolgreich gespeichert.', 'success')
-                print(f"DEBUG PL_DASH: Notiz für Coaching {coaching_id_int} commited.") # DEBUG
             except ValueError:
                 flash('Ungültige Coaching-ID erhalten.', 'danger')
-                print(f"FEHLER: Ungültige Coaching-ID: {coaching_id_str}") #DEBUG
             except Exception as e:
                 db.session.rollback()
                 flash(f'Fehler beim Speichern der Notiz: {str(e)}', 'danger')
-                print(f"FEHLER DB Commit PL Notiz: {e}") # DEBUG
-                import traceback
-                traceback.print_exc() # DEBUG
-            return redirect(url_for('main.projektleiter_dashboard', page=request.args.get('page', 1, type=int)))
+            # Nach dem POST zum selben Dashboard zurückleiten
+            return redirect(url_for('main.pl_qm_dashboard', page=request.args.get('page', 1, type=int)))
         else:
-            return redirect(url_for('main.projektleiter_dashboard', page=page))
+            return redirect(url_for('main.pl_qm_dashboard', page=page))
 
-    # --- Daten für Top/Flop Teams ---
-    print("DEBUG PL_DASH: Beginne Aggregation für Top/Flop Teams")
+    # Top/Flop Teams Logik (bleibt gleich)
     all_teams_data = []
     teams_list = Team.query.all()
-    
-    if not teams_list:
-        print("DEBUG PL_DASH: Keine Teams in der Datenbank gefunden.")
-    
     for team_obj in teams_list: 
-        print(f"DEBUG PL_DASH: Verarbeite Team ID {team_obj.id} - {team_obj.name}")
         team_stats = db.session.query(
             func.coalesce(func.avg(Coaching.performance_mark * 10.0), 0).label('avg_performance_mark_scaled'), 
             func.coalesce(func.sum(Coaching.time_spent), 0).label('total_time'),
             func.coalesce(func.count(Coaching.id), 0).label('num_coachings')
         ).join(TeamMember, Coaching.team_member_id == TeamMember.id)\
          .filter(TeamMember.team_id == team_obj.id).first()
-
         if team_stats:
-            print(f"DEBUG PL_DASH: Stats für Team {team_obj.name}: AvgPerfMarkScaled={team_stats.avg_performance_mark_scaled}, Zeit={team_stats.total_time}, Anzahl={team_stats.num_coachings}")
             all_teams_data.append({
-                'id': team_obj.id,
-                'name': team_obj.name,
+                'id': team_obj.id, 'name': team_obj.name,
                 'num_coachings': team_stats.num_coachings,
                 'avg_score': round(team_stats.avg_performance_mark_scaled, 2), 
                 'total_time': team_stats.total_time if team_stats.total_time else 0
             })
         else:
-            print(f"DEBUG PL_DASH: Keine Stats für Team {team_obj.name} gefunden (team_stats is None).")
             all_teams_data.append({
                 'id': team_obj.id, 'name': team_obj.name,
                 'num_coachings': 0, 'avg_score': 0, 'total_time': 0
             })
-            
-    print(f"DEBUG PL_DASH: Rohdaten aller Teams für Sortierung: {all_teams_data}")
-
     sorted_teams = sorted(all_teams_data, key=lambda x: (x['avg_score'], x['num_coachings']), reverse=True)
     top_3_teams = sorted_teams[:3]
-    
     teams_with_coachings_for_flop = [t for t in all_teams_data if t['num_coachings'] > 0]
     if teams_with_coachings_for_flop:
         sorted_teams_flop = sorted(teams_with_coachings_for_flop, key=lambda x: (x['avg_score'], -x['num_coachings']))
         flop_3_teams = sorted_teams_flop[:3]
     else:
         flop_3_teams = []
-    
-    print(f"DEBUG PL_DASH: Top 3: {top_3_teams}")
-    print(f"DEBUG PL_DASH: Flop 3: {flop_3_teams}")
 
     return render_template(
-        'main/projektleiter_dashboard.html', 
-        title='Projektleiter Dashboard',
+        'main/projektleiter_dashboard.html', # Wir verwenden dasselbe Template
+        title=dashboard_title, # Dynamischer Titel
         coachings_paginated=coachings_paginated, 
         note_form=note_form_display,
         top_3_teams=top_3_teams, 
