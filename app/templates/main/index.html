@@ -47,11 +47,11 @@
         </div>
     </form>
 
-    {# NEUE INFO-BOXEN #}
+   {# NEUE INFO-BOXEN mit .info-box Klasse und h-100 für gleiche Höhe #}
     <div class="row mb-4">
         <div class="col-md-6 mb-3">
-            <div class="card text-white telekom-bg-magenta">
-                <div class="card-body text-center">
+            <div class="card text-white telekom-bg-magenta info-box h-100"> {# info-box und h-100 hinzugefügt #}
+                <div class="card-body text-center d-flex flex-column justify-content-center"> {# Flexbox für vertikale Zentrierung #}
                     <h5 class="card-title">Coaching Sessions</h5>
                     <p class="card-text display-4">{{ total_filtered_coachings_count }}</p>
                     <small>(im ausgewählten Zeitraum/Team)</small>
@@ -59,11 +59,11 @@
             </div>
         </div>
         <div class="col-md-6 mb-3">
-            <div class="card text-white telekom-bg-magenta">
-                <div class="card-body text-center">
+            <div class="card text-white telekom-bg-magenta info-box h-100"> {# info-box und h-100 hinzugefügt #}
+                <div class="card-body text-center d-flex flex-column justify-content-center"> {# Flexbox für vertikale Zentrierung #}
                     <h5 class="card-title">Stunden gecoacht</h5>
-                    <p class="card-text display-4" style="font-size: 2.5rem;">{{ time_coached_display.split('(')[0].strip() if time_coached_display else '0 Std. 0 Min.' }}</p> 
-                    <small>({{ time_coached_display.split('(')[1].split(')')[0] if time_coached_display and '(' in time_coached_display else '0' }} Min. gesamt im Zeitraum/Team)</small>
+                    <p class="card-text display-4">{{ time_coached_display.split('(')[0].strip() if time_coached_display else '0 Std. 0 Min.' }}</p> 
+                    <small>({{ time_coached_display.split('(')[1].split(')')[0] if time_coached_display and '(' in time_coached_display else '0' }} Min. gesamt)</small>
                 </div>
             </div>
         </div>
