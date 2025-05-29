@@ -34,15 +34,19 @@
                     </td>
                 </tr>
                 <!-- Modal für Notizen -->
-               <div class="modal fade" id="noteModal-{{ coaching.id }}" tabindex="-1" role="dialog" aria-labelledby="noteModalLabel-{{ coaching.id }}" aria-hidden="true">
+              <div class="modal fade" id="noteModal-{{ coaching.id }}" tabindex="-1" role="dialog" aria-labelledby="noteModalLabel-{{ coaching.id }}" aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
-            {# action zeigt auf die aktuelle Route, page wird übergeben, um nach dem POST dorthin zurückzukehren #}
             <form method="POST" action="{{ url_for('main.projektleiter_dashboard', page=coachings_paginated.page if coachings_paginated and coachings_paginated.page else 1) }}">
                 {{ note_form.hidden_tag() }} {# CSRF-Token von note_form_display #}
                 
-                {# Dieses HiddenField wird mit den POST-Daten gesendet und von form_to_validate gelesen #}
-                <input type="hidden" name="coaching_id" value="{{ coaching.id }}">
+                {# HIER DIE ÄNDERUNG: Das HiddenField aus dem Formularobjekt rendern und seinen Wert setzen #}
+                {{ note_form.coaching_id(value=coaching.id, style="display:none;") }} 
+                {# style="display:none;" ist optional, da HiddenFields eh nicht angezeigt werden, aber schadet nicht #}
+                {# Alternativ, wenn value nicht direkt funktioniert, muss es im Python-Code vorbelegt werden, was aber unsauber ist #}
+                {# Besser ist, wenn das Formular mit den Daten aus request.form neu erstellt wird. #}
+                {# Die obige Methode sollte das Feld mit dem korrekten Wert rendern. #}
+
 
                 <div class="modal-header telekom-bg-magenta text-white">
                     <h5 class="modal-title" id="noteModalLabel-{{ coaching.id }}">Notiz für Coaching #{{ coaching.id }}</h5>
@@ -55,14 +59,10 @@
                        <strong>Coach:</strong> {{ coaching.coach.username if coaching.coach else 'N/A' }}<br>
                        <strong>Datum:</strong> {{ coaching.coaching_date.strftime('%d.%m.%Y %H:%M') }}</p>
                     <div class="form-group">
-                        {# note_form.notes ist hier note_form_display.notes #}
                         {{ note_form.notes.label(class="form-control-label") }}
-                        {# Der 'value' hier ist wichtig, um bestehende Notizen anzuzeigen #}
                         {{ note_form.notes(class="form-control " + ("is-invalid" if form_to_validate and form_to_validate.notes.errors else ""), rows=5, value=coaching.project_leader_notes if coaching.project_leader_notes else "") }}
-                        {# Fehleranzeige, falls Validierung fehlschlägt (schwierig, da das Modal neu gerendert werden müsste) #}
-                        {# Dieser Fehlerblock hier wird nur angezeigt, wenn die ganze Seite mit Fehlern in note_form_display neu gerendert wird #}
                         {% if note_form.notes.errors %} 
-                            <div class="invalid-feedback d-block"> {# d-block um es sichtbar zu machen #}
+                            <div class="invalid-feedback d-block">
                                 {% for error in note_form.notes.errors %}<span>{{ error }}</span><br>{% endfor %}
                             </div>
                         {% endif %}
@@ -70,7 +70,6 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Abbrechen</button>
-                    {# Wichtig: Der Name des Submit-Buttons #}
                     <input type="submit" name="submit_note" class="btn telekom-button" value="Notiz speichern">
                 </div>
             </form>
