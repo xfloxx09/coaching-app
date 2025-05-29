@@ -258,8 +258,35 @@
 
         const commonChartOptions = { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { color: textColor, precision: 0 } }, x: { ticks: { color: textColor } } }, plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'end', color: textColor, font: { weight: 'bold' }, formatter: Math.round } } };
 
-        // 1. Ø Performance / Team (%)
-        drawChartWithMessage(chartAvgPerformanceCtx, { type: 'bar', data: { labels: chartLabels, datasets: [{ label: 'Ø Performance Mark (0-100 Skala)', data: chartAvgPerformanceData, backgroundColor: telekomMagenta, borderColor: telekomMagentaBorder, borderWidth: 1 }] }, options: { ...commonChartOptions, scales: { ...commonChartOptions.scales, y: { ...commonChartOptions.scales.y, max: 100, ticks: { ...commonChartOptions.scales.y.ticks, callback: function(value) {return value + "%"} } } }, plugins: { ...commonChartOptions.plugins, datalabels: {...commonChartOptions.plugins.datalabels, formatter: (value) => Math.round(value) + '%'}, annotation: { annotations: { line1: { type: 'line', yMin: 80, yMax: 80, borderColor: telekomDarkGreen, borderWidth: 2, borderDash: [6, 6], label: { enabled: false } } } } } } });
+       // 1. Ø Performance / Team (%)
+        drawChartWithMessage(chartAvgPerformanceCtx, {
+            type: 'bar',
+            data: { labels: chartLabels, datasets: [{ label: 'Ø Performance Mark (0-100 Skala)', data: chartAvgPerformanceData, backgroundColor: telekomMagenta, borderColor: telekomMagentaBorder, borderWidth: 1 }] },
+            options: { 
+                ...commonChartOptions, 
+                scales: { 
+                    ...commonChartOptions.scales, 
+                    y: { 
+                        ...commonChartOptions.scales.y, 
+                        min: 0, // Explizit bei 0 beginnen
+                        max: 100, // Max bei 100 lassen
+                        // suggestedMax: 105, // Alternative, um Puffer zu geben, falls 100 nicht gut aussieht
+                        ticks: { 
+                            ...commonChartOptions.scales.y.ticks, 
+                            stepSize: 10, // Feste Schrittgröße von 10%
+                            callback: function(value) {return value + "%"} 
+                        } 
+                    } 
+                }, 
+                plugins: { 
+                    // ... (Rest der Plugins wie datalabels und annotation) ...
+                    datalabels: {...commonChartOptions.plugins.datalabels, formatter: (value) => Math.round(value) + '%'}, 
+                    annotation: { annotations: { 
+                        line1: { type: 'line', yMin: 80, yMax: 80, borderColor: telekomDarkGreen, borderWidth: 2, borderDash: [6, 6], label: { enabled: false } } 
+                    } } 
+                } 
+            }
+        });
         
         // 2. Ø Coaching-Dauer / Team (Min.)
         let maxAvgTime = 0;
