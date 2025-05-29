@@ -13,58 +13,45 @@ bp = Blueprint('main', __name__)
 
 # --- HILFSFUNKTIONEN FÜR DATENAGGREGATION ---
 def get_performance_data_for_charts(days_filter_str=None, selected_team_id_str=None):
-    """
-    Aggregiert Coaching-Daten für die Charts.
-    - days_filter_str: "7", "30" oder None/"" (alles)
-    - selected_team_id_str: ID eines Teams als String, "all" oder None (alle Teams)
-    """
-    # Basis-Query, die Teams mit Coachings verbindet
-    query = db.session.query(
+    query_elements = [
         Team.id.label('team_id'),
         Team.name.label('team_name'),
-        func.coalesce(func.avg(Coaching.overall_score), 0).label('avg_overall_score'),
+        # HIER DIE ÄNDERUNG: Wir aggregieren performance_mark direkt
+        # und nennen es avg_performance_mark_percentage, um klarzustellen, dass es nicht der volle overall_score ist.
+        # Da performance_mark 0-10 ist, multiplizieren wir mit 10, um es auf eine Skala von 0-100 zu bringen.
+        func.coalesce(func.avg(Coaching.performance_mark * 10.0), 0).label('avg_performance_mark_percentage'), # 10.0 für Fließkomma-Division
         func.coalesce(func.sum(Coaching.time_spent), 0).label('total_time_spent'),
         func.coalesce(func.count(Coaching.id), 0).label('coachings_done')
-    ).select_from(Team)\
-     .outerjoin(TeamMember, Team.id == TeamMember.team_id)\
-     .outerjoin(Coaching, TeamMember.id == Coaching.team_member_id)
-
-    # Zeitfilter anwenden
+    ]
+    
+    # Temporäre Tabelle/CTE für gefilterte Coachings, falls ein Datumsfilter aktiv ist
     if days_filter_str and days_filter_str.isdigit():
         days = int(days_filter_str)
         start_date = datetime.now(timezone.utc) - timedelta(days=days)
-        # Wichtig: Der Filter muss auf Coaching.coaching_date angewendet werden,
-        # aber da wir von Team ausgehen, müssen wir sicherstellen, dass Teams ohne Coachings im Zeitraum nicht fälschlicherweise ausgeschlossen werden,
-        # wenn wir nur auf Coaching-Ebene filtern und dann gruppieren.
-        # Besser ist es, die Coachings VOR dem Join zu filtern oder eine Subquery zu verwenden.
-        # Für Einfachheit hier: wir filtern die Coachings und Teams ohne Coachings im Zeitraum haben dann 0-Werte.
-        # Dies erfordert, dass der Join auch dann Teams liefert, wenn keine passenden Coachings im Zeitraum gefunden werden.
-        # Daher outerjoin und coalesce.
-        # Die Filterung des Datums muss auf die Coaching-Tabelle innerhalb der Aggregationsfunktionen
-        # oder durch eine gefilterte Subquery für Coachings erfolgen.
-        # Einfacher Ansatz: Filtere die Coachings bevor sie aggregiert werden.
         
-        # Temporäre Tabelle/CTE für gefilterte Coachings
         filtered_coachings_subquery = db.session.query(
             Coaching.id.label("coaching_id"),
             Coaching.team_member_id,
-            Coaching.overall_score,
+            Coaching.performance_mark, # Nur die Spalte, die wir direkt aggregieren
             Coaching.time_spent
         ).filter(Coaching.coaching_date >= start_date).subquery()
 
-        # Neuaufbau der Query mit der Subquery
         query = db.session.query(
             Team.id.label('team_id'),
             Team.name.label('team_name'),
-            func.coalesce(func.avg(filtered_coachings_subquery.c.overall_score), 0).label('avg_overall_score'),
+            func.coalesce(func.avg(filtered_coachings_subquery.c.performance_mark * 10.0), 0).label('avg_performance_mark_percentage'),
             func.coalesce(func.sum(filtered_coachings_subquery.c.time_spent), 0).label('total_time_spent'),
             func.coalesce(func.count(filtered_coachings_subquery.c.coaching_id), 0).label('coachings_done')
         ).select_from(Team)\
         .outerjoin(TeamMember, Team.id == TeamMember.team_id)\
         .outerjoin(filtered_coachings_subquery, TeamMember.id == filtered_coachings_subquery.c.team_member_id)
+    else:
+        # Query ohne Datumsfilter
+        query = db.session.query(*query_elements)\
+        .select_from(Team)\
+        .outerjoin(TeamMember, Team.id == TeamMember.team_id)\
+        .outerjoin(Coaching, TeamMember.id == Coaching.team_member_id)
 
-
-    # Teamfilter anwenden
     if selected_team_id_str and selected_team_id_str.isdigit():
         query = query.filter(Team.id == int(selected_team_id_str))
 
@@ -72,22 +59,23 @@ def get_performance_data_for_charts(days_filter_str=None, selected_team_id_str=N
 
     chart_data = {
         'labels': [r.team_name for r in results],
-        'avg_performance_values': [round(r.avg_overall_score, 2) for r in results],
+        'avg_performance_values': [round(r.avg_performance_mark_percentage, 2) for r in results], # Umbenannt
         'avg_time_spent_values': [round(r.total_time_spent / r.coachings_done, 2) if r.coachings_done > 0 else 0 for r in results],
         'coachings_done_values': [r.coachings_done for r in results]
     }
     return chart_data
 
-
+# Die index-Route muss dann die umbenannte Variable an das Template übergeben:
 @bp.route('/')
 @bp.route('/index')
 @login_required
 def index():
+    # ... (Code für Paginierung und Filter-Argumente bleibt gleich) ...
     page = request.args.get('page', 1, type=int)
-    days_filter_arg = request.args.get('days', None) # Behält None, wenn nicht gesetzt
+    days_filter_arg = request.args.get('days', None) 
     team_filter_arg = request.args.get('team', "all")
 
-    # --- Daten für die paginierte Coaching-Liste (bleibt unabhängig von Chart-Filtern für Einfachheit) ---
+    # ... (Code für coachings_list_query bleibt gleich) ...
     if current_user.role in [ROLE_ADMIN, ROLE_PROJEKTLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER]:
         coachings_list_query = Coaching.query
     elif current_user.role == ROLE_TEAMLEITER:
@@ -98,32 +86,21 @@ def index():
             team_members_ids = [member.id for member in TeamMember.query.filter_by(team_id=current_user.team_id_if_leader).all()]
             if not team_members_ids:
                  coachings_list_query = Coaching.query.filter(Coaching.coach_id == current_user.id)
-            else: # Zeige Coachings von Mitgliedern des eigenen Teams ODER die man selbst durchgeführt hat
+            else:
                 coachings_list_query = Coaching.query.filter(
                     or_(Coaching.team_member_id.in_(team_members_ids), Coaching.coach_id == current_user.id)
                 )
     else:
         coachings_list_query = Coaching.query.filter(sqlalchemy.sql.false())
 
-    # Anwenden der Filter auf die Hauptliste, falls gewünscht (optional, macht die Paginierung konsistenter)
-    # if days_filter_arg and days_filter_arg.isdigit():
-    #     start_date = datetime.now(timezone.utc) - timedelta(days=int(days_filter_arg))
-    #     coachings_list_query = coachings_list_query.filter(Coaching.coaching_date >= start_date)
-    # if team_filter_arg and team_filter_arg.isdigit():
-    #     team_members_for_list_filter = [m.id for m in TeamMember.query.filter_by(team_id=int(team_filter_arg)).all()]
-    #     coachings_list_query = coachings_list_query.filter(Coaching.team_member_id.in_(team_members_for_list_filter))
-
-
     coachings_paginated = coachings_list_query.order_by(desc(Coaching.coaching_date)).paginate(page=page, per_page=10, error_out=False)
-    total_coachings_in_list = coachings_list_query.count() # count() auf die Query vor der Paginierung
+    total_coachings_in_list = coachings_list_query.count()
     
-    # --- Daten für die Charts ---
     chart_team_filter_for_func = team_filter_arg
-    if current_user.role == ROLE_TEAMLEITER: # Teamleiter sieht nur sein Team in den Charts
+    if current_user.role == ROLE_TEAMLEITER: 
         chart_team_filter_for_func = str(current_user.team_id_if_leader) if current_user.team_id_if_leader else "none" 
 
     chart_data = get_performance_data_for_charts(days_filter_arg, chart_team_filter_for_func)
-    
     all_teams_for_filter_dropdown = Team.query.order_by(Team.name).all()
 
     return render_template('main/index.html', 
@@ -131,7 +108,8 @@ def index():
                            coachings_paginated=coachings_paginated, 
                            total_coachings=total_coachings_in_list,
                            chart_labels=chart_data['labels'],
-                           chart_avg_performance=chart_data['avg_performance_values'],
+                           # HIER DIE UMBENENNUNG BEACHTEN:
+                           chart_avg_performance_mark_percentage=chart_data['avg_performance_values'], 
                            chart_avg_time_spent=chart_data['avg_time_spent_values'],
                            chart_coachings_done=chart_data['coachings_done_values'],
                            all_teams_for_filter=all_teams_for_filter_dropdown,
