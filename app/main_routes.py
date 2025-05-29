@@ -16,11 +16,11 @@ bp = Blueprint('main', __name__)
 def get_filtered_coachings_subquery(days_filter_str=None):
     """ Erstellt eine Subquery für Coachings, optional gefiltert nach Datum. """
     coachings_base_q = db.session.query(
-        Coaching.id.label("coaching_id"), # Eindeutiger Alias für die ID in der Subquery
-        Coaching.team_member_id,
-        Coaching.performance_mark,
-        Coaching.time_spent,
-        Coaching.coaching_subject # Für das Themen-Chart
+        Coaching.id.label("coaching_id_sq"), # Eindeutiger Alias, um Kollisionen zu vermeiden
+        Coaching.team_member_id.label("team_member_id_sq"),
+        Coaching.performance_mark.label("performance_mark_sq"),
+        Coaching.time_spent.label("time_spent_sq"),
+        Coaching.coaching_subject.label("coaching_subject_sq")
     )
     if days_filter_str and days_filter_str.isdigit():
         days = int(days_filter_str)
@@ -38,12 +38,12 @@ def get_performance_data_for_charts(days_filter_str=None, selected_team_id_str=N
     query = db.session.query(
         Team.id.label('team_id'),
         Team.name.label('team_name'),
-        func.coalesce(func.avg(filtered_coachings_sq.c.performance_mark * 10.0), 0).label('avg_performance_mark_scaled'),
-        func.coalesce(func.sum(filtered_coachings_sq.c.time_spent), 0).label('total_time_spent'),
-        func.coalesce(func.count(filtered_coachings_sq.c.coaching_id), 0).label('coachings_done')
+        func.coalesce(func.avg(filtered_coachings_sq.c.performance_mark_sq * 10.0), 0).label('avg_performance_mark_scaled'),
+        func.coalesce(func.sum(filtered_coachings_sq.c.time_spent_sq), 0).label('total_time_spent'),
+        func.coalesce(func.count(filtered_coachings_sq.c.coaching_id_sq), 0).label('coachings_done')
     ).select_from(Team)\
      .outerjoin(TeamMember, Team.id == TeamMember.team_id)\
-     .outerjoin(filtered_coachings_sq, TeamMember.id == filtered_coachings_sq.c.team_member_id) # Join mit der Subquery
+     .outerjoin(filtered_coachings_sq, TeamMember.id == filtered_coachings_sq.c.team_member_id_sq) # Join mit der Subquery
 
     if selected_team_id_str and selected_team_id_str.isdigit():
         query = query.filter(Team.id == int(selected_team_id_str))
@@ -61,21 +61,19 @@ def get_performance_data_for_charts(days_filter_str=None, selected_team_id_str=N
 def get_coaching_subject_distribution(days_filter_str=None, selected_team_id_str=None):
     """ Ermittelt die Verteilung der Coaching-Themen. """
     
-    # Verwende dieselbe Subquery für gefilterte Coachings, um Konsistenz zu wahren
     filtered_coachings_sq = get_filtered_coachings_subquery(days_filter_str)
 
     query = db.session.query(
-        filtered_coachings_sq.c.coaching_subject.label('coaching_subject'), # Zugriff auf Spalte der Subquery
-        func.count(filtered_coachings_sq.c.coaching_id).label('count')
+        filtered_coachings_sq.c.coaching_subject_sq.label('coaching_subject'), 
+        func.count(filtered_coachings_sq.c.coaching_id_sq).label('count')
     ).select_from(filtered_coachings_sq)\
-     .filter(filtered_coachings_sq.c.coaching_subject.isnot(None))
+     .filter(filtered_coachings_sq.c.coaching_subject_sq.isnot(None))
 
     if selected_team_id_str and selected_team_id_str.isdigit():
-        # Um nach Team zu filtern, müssen wir die Subquery mit TeamMember joinen
-        query = query.join(TeamMember, filtered_coachings_sq.c.team_member_id == TeamMember.id)\
+        query = query.join(TeamMember, filtered_coachings_sq.c.team_member_id_sq == TeamMember.id)\
                      .filter(TeamMember.team_id == int(selected_team_id_str))
     
-    results = query.group_by(filtered_coachings_sq.c.coaching_subject).order_by(desc('count')).all()
+    results = query.group_by(filtered_coachings_sq.c.coaching_subject_sq).order_by(desc('count')).all()
 
     subject_data = {
         'labels': [r.coaching_subject for r in results if r.coaching_subject],
