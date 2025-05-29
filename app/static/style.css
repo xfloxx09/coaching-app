@@ -1,164 +1,250 @@
+/* app/static/style.css */
+
+/* Globale Einstellungen */
 body {
-    background-color: #1a1a1a; /* Dunkles Schwarz/Grau */
-    color: #f0f0f0; /* Heller Text für Kontrast */
-    font-family: 'TeleNeo', 'Helvetica Neue', Helvetica, Arial, sans-serif; /* Telekom Schriftart, falls verfügbar */
+    background-color: #121212; /* Sehr dunkles Grau, fast Schwarz */
+    color: #e0e0e0; /* Helles Grau für Text, guter Kontrast */
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; /* Standard-Fallback, falls TeleNeo nicht verfügbar */
+    font-size: 0.95rem; /* Etwas kleinere Basisschriftgröße */
+    line-height: 1.6;
 }
 
-/* Telekom Magenta: #e20074 */
-/* Telekom Dunkelgrau (fast schwarz): #333333 oder dunkler */
-/* Telekom Hellgrau für Akzente: #f0f0f0 */
-
-.telekom-brand {
-    font-weight: bold;
-    color: #e20074 !important;
+/* Telekom Farben */
+:root {
+    --telekom-magenta: #e20074;
+    --telekom-dark-gray: #333333;
+    --telekom-medium-gray: #4f4f4f; /* Für Kartenhintergründe */
+    --telekom-light-gray: #f0f0f0; /* Für hellen Text */
+    --telekom-border-gray: #555555; /* Für subtile Borders */
+    --telekom-green-benchmark: #00A859; /* Ein sattes Grün für die Benchmark */
 }
 
+/* Überschriften */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--telekom-light-gray);
+    font-weight: 300; /* Leichtere Schrift für moderne Optik */
+}
+h2 { margin-bottom: 1.5rem; }
+h3 { margin-bottom: 1rem; margin-top: 2rem; }
+
+/* Navbar */
 .navbar {
-    background-color: #000000 !important; /* Schwarze Navbar */
-    border-bottom: 2px solid #e20074;
+    background-color: #000000 !important; 
+    border-bottom: 3px solid var(--telekom-magenta);
+    padding-top: 0.8rem;
+    padding-bottom: 0.8rem;
 }
-
+.navbar-brand.telekom-brand {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--telekom-magenta) !important;
+}
 .nav-link {
-    color: #f0f0f0 !important;
+    color: var(--telekom-light-gray) !important;
+    font-weight: 500;
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
 }
-.nav-link:hover {
-    color: #e20074 !important;
+.nav-link:hover, .nav-link.active { /* .active für die aktuell ausgewählte Seite */
+    color: var(--telekom-magenta) !important;
+    background-color: rgba(226, 0, 116, 0.1); /* Sehr subtiler Hover-Effekt */
+    border-radius: 4px;
+}
+.navbar-text { /* Für "Angemeldet als..." */
+    color: var(--telekom-magenta) !important;
 }
 
-.telekom-button {
-    background-color: #e20074;
-    border-color: #e20074;
+/* Buttons */
+.btn {
+    border-radius: 20px; /* Abgerundete Ecken */
+    padding: 0.5rem 1.25rem;
+    font-weight: 500;
+    transition: all 0.2s ease-in-out;
+}
+.btn-telekom-button {
+    background-color: var(--telekom-magenta);
+    border-color: var(--telekom-magenta);
     color: white;
 }
-.telekom-button:hover {
-    background-color: #c0005e; /* Dunkleres Magenta für Hover */
+.btn-telekom-button:hover {
+    background-color: #c0005e;
     border-color: #c0005e;
     color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
 }
-
-.telekom-button-outline {
-    border-color: #e20074;
-    color: #e20074;
+.btn-telekom-button-outline {
+    border: 2px solid var(--telekom-magenta);
+    color: var(--telekom-magenta);
+    background-color: transparent;
 }
-.telekom-button-outline:hover {
-    background-color: #e20074;
+.btn-telekom-button-outline:hover {
+    background-color: var(--telekom-magenta);
     color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(226,0,116,0.3);
+}
+.btn-secondary {
+    background-color: var(--telekom-medium-gray);
+    border-color: var(--telekom-medium-gray);
+}
+.btn-secondary:hover {
+    background-color: var(--telekom-dark-gray);
+    border-color: var(--telekom-dark-gray);
+    transform: translateY(-2px);
 }
 
-
+/* Karten (für Charts, Info-Boxen, etc.) */
 .card {
-    background-color: #2b2b2b; /* Etwas helleres Grau für Karten */
-    border: 1px solid #444;
+    background-color: var(--telekom-medium-gray); 
+    border: 1px solid var(--telekom-border-gray);
+    border-radius: 8px; /* Leicht abgerundete Ecken */
+    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+    color: var(--telekom-light-gray); /* Textfarbe in Karten */
 }
 .card-header.telekom-bg-magenta {
-    background-color: #e20074;
+    background-color: var(--telekom-magenta);
     color: white;
-    border-bottom: 1px solid #c0005e;
+    font-weight: 500;
+    border-bottom: 1px solid rgba(0,0,0,0.2);
+    border-top-left-radius: 8px; /* Abrundung an Header anpassen */
+    border-top-right-radius: 8px;
+}
+.card-body {
+    padding: 1.25rem;
 }
 
+/* Info-Boxen auf Dashboard */
+.info-box .card-body {
+    padding: 1rem; /* Etwas weniger Padding */
+}
+.info-box .card-title {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+.info-box .card-text.display-4 {
+    font-size: 2.2rem; /* Kleinere Schrift für die große Zahl */
+    font-weight: bold;
+    margin-bottom: 0.25rem;
+    color: var(--telekom-light-gray);
+}
+.info-box small {
+    font-size: 0.8rem;
+    color: #aaa; /* Noch helleres Grau für den Subtext */
+}
+
+
+/* Tabellen */
 .table {
-    color: #f0f0f0; /* Textfarbe für Tabellen */
+    color: var(--telekom-light-gray);
+    background-color: var(--telekom-medium-gray); /* Hintergrund für ganze Tabelle */
+    border-radius: 8px; /* Abrundung auch für Tabellen */
+    overflow: hidden; /* Stellt sicher, dass border-radius greift */
 }
 .table thead.telekom-bg-magenta th {
-    background-color: #e20074;
+    background-color: var(--telekom-magenta);
     color: white;
     border-color: #c0005e;
+    font-weight: 500;
 }
 .table-striped tbody tr:nth-of-type(odd) {
-    background-color: rgba(255, 255, 255, 0.05); /* Sehr dezentes Streifenmuster */
+    background-color: rgba(0, 0, 0, 0.1); /* Dunklerer Streifen auf medium-gray */
 }
 .table-hover tbody tr:hover {
-    background-color: rgba(226, 0, 116, 0.2); /* Magenta-Hover für Tabellenzeilen */
+    background-color: rgba(226, 0, 116, 0.15);
     color: #fff;
 }
-
-.form-control {
-    background-color: #333;
-    color: #f0f0f0;
-    border: 1px solid #555;
+.table td, .table th {
+    border-top: 1px solid var(--telekom-border-gray); /* Subtilere Trennlinien */
+    padding: 0.9rem 0.75rem; /* Etwas mehr Padding in Zellen */
 }
-.form-control:focus {
-    background-color: #444;
-    color: #f0f0f0;
-    border-color: #e20074;
+
+/* Formularelemente */
+.form-control, .custom-select {
+    background-color: var(--telekom-dark-gray);
+    color: var(--telekom-light-gray);
+    border: 1px solid var(--telekom-border-gray);
+    border-radius: 20px; /* Abgerundete Formularfelder */
+}
+.form-control:focus, .custom-select:focus {
+    background-color: var(--telekom-medium-gray);
+    color: var(--telekom-light-gray);
+    border-color: var(--telekom-magenta);
     box-shadow: 0 0 0 0.2rem rgba(226, 0, 116, 0.25);
 }
-.custom-select { /* Für Select-Felder */
-    background-color: #333;
-    color: #f0f0f0;
-    border: 1px solid #555;
+.form-control-label, label {
+    color: #bbb; /* Etwas gedämpftere Label-Farbe */
+    margin-bottom: 0.3rem;
 }
-.custom-select:focus {
-    border-color: #e20074;
-    box-shadow: 0 0 0 0.2rem rgba(226, 0, 116, 0.25);
+.form-group {
+    margin-bottom: 1.2rem; /* Etwas mehr Abstand zwischen Formulargruppen */
 }
 
-
+/* Progress Bar */
 .progress-bar.telekom-progress-bar {
-    background-color: #e20074;
+    background-color: var(--telekom-magenta);
 }
 .progress {
-    background-color: #555; /* Hintergrund der Progressbar */
-    height: 20px; /* Etwas höher für bessere Sichtbarkeit */
+    background-color: var(--telekom-dark-gray); 
+    height: 12px; /* Etwas schlanker */
+    border-radius: 6px;
 }
 
-.alert-info {
-    background-color: #17a2b8; /* Standard Bootstrap Info, könnte man anpassen */
-    color: white;
-    border-color: #17a2b8;
+/* Alerts */
+.alert {
+    border-radius: 8px;
+    border-width: 0;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
-.alert-success {
-    background-color: #28a745;
-    color: white;
-    border-color: #28a745;
+.alert-dismissible .close {
+    color: inherit; /* Passt sich besser an Alert-Textfarbe an */
 }
-.alert-warning {
-    background-color: #ffc107;
-    color: #212529;
-    border-color: #ffc107;
-}
-.alert-danger {
-    background-color: #dc3545;
-    color: white;
-    border-color: #dc3545;
-}
+.alert-success { background-color: #28a745; color: white; }
+.alert-danger { background-color: #dc3545; color: white; }
+.alert-warning { background-color: #ffc107; color: #212529; }
+.alert-info { background-color: #17a2b8; color: white; }
 
-/* Pagination Styling */
-.page-link.telekom-page-link {
-    color: #e20074;
-    background-color: #333;
-    border-color: #555;
+
+/* Paginierung */
+.page-link {
+    border-radius: 50px !important; /* Runde Paginierungs-Buttons */
+    margin: 0 3px;
+    border-color: var(--telekom-border-gray);
+    background-color: var(--telekom-dark-gray);
+    color: var(--telekom-light-gray);
 }
-.page-link.telekom-page-link:hover {
+.page-link:hover {
+    background-color: var(--telekom-medium-gray);
+    color: var(--telekom-magenta);
+}
+.page-item.active .page-link {
+    background-color: var(--telekom-magenta);
+    border-color: var(--telekom-magenta);
     color: white;
-    background-color: #e20074;
-    border-color: #e20074;
-}
-.page-item.active .page-link.telekom-page-active {
-    z-index: 3;
-    color: #fff;
-    background-color: #e20074;
-    border-color: #e20074;
 }
 .page-item.disabled .page-link {
+    background-color: var(--telekom-dark-gray);
+    border-color: var(--telekom-border-gray);
     color: #6c757d;
-    background-color: #2b2b2b;
-    border-color: #444;
 }
 
+/* Modal */
+.modal-content {
+    background-color: var(--telekom-medium-gray);
+    border: 1px solid var(--telekom-border-gray);
+    border-radius: 8px;
+}
+.modal-header {
+    border-bottom: 1px solid var(--telekom-border-gray);
+}
+.modal-footer {
+    border-top: 1px solid var(--telekom-border-gray);
+}
+
+/* Footer */
 footer {
-    color: #aaa;
-}
-
-/* Spezifisch für das T-CAP ID Feld, wenn es über WTForms gerendert wird */
-#tcap_id_field label, #tcap_id_field input {
-    /* Deine Stile hier, falls nötig */
-}
-
-/* Spezifisch für Admin-Formular Buttons */
-.btn-xs { /* Bootstrap 3 Größe, in BS4 nicht Standard */
-    padding: .2rem .4rem;
-    font-size: .75rem;
-    line-height: 1.5;
-    border-radius: .2rem;
+    color: #888;
+    padding: 2rem 0;
+    border-top: 1px solid var(--telekom-border-gray);
 }
