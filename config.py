@@ -36,5 +36,5 @@ class Config:
 
     print(f"DEBUG [config.py]: Finale SQLALCHEMY_DATABASE_URI, die gesetzt wird: '{SQLALCHEMY_DATABASE_URI}'") # DEBUG
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-
+    PERFORMANCE_BENCHMARK = 80.0
 print("DEBUG [config.py]: config.py wurde vollständig geladen.") # DEBUG
