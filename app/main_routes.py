@@ -3,49 +3,79 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 from app import db
 from app.models import User, Team, TeamMember, Coaching 
-from app.forms import CoachingForm, ProjectLeaderNoteForm # Annahme: Diese sind korrekt
+from app.forms import CoachingForm, ProjectLeaderNoteForm 
 from app.utils import role_required, ROLE_ADMIN, ROLE_PROJEKTLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER, ROLE_TEAMLEITER
-from sqlalchemy import desc, func, or_, and_ # and_ hinzugefügt für komplexe Filter
+from sqlalchemy import desc, func, or_, and_
 from datetime import datetime, timedelta, timezone
-import sqlalchemy # Für sqlalchemy.sql.false()
+import sqlalchemy
 
 bp = Blueprint('main', __name__)
 
 # --- HILFSFUNKTIONEN FÜR DATENAGGREGATION ---
 
-def get_filtered_coachings_subquery(date_from_str=None, date_to_str=None):
-    """ Erstellt eine Subquery für Coachings, optional gefiltert nach Datumsbereich. """
+def calculate_date_range(period_filter_str=None):
+    """
+    Berechnet start_date und end_date basierend auf dem period_filter_str.
+    Gibt (start_date, end_date) oder (None, None) zurück.
+    """
+    now = datetime.now(timezone.utc)
+    start_date, end_date = None, None # Default für "Alles"
+
+    if period_filter_str == '7days':
+        start_date = now - timedelta(days=6) 
+        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_date = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+    elif period_filter_str == '30days':
+        start_date = now - timedelta(days=29)
+        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_date = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+    elif period_filter_str == 'current_quarter':
+        current_month = now.month
+        if 1 <= current_month <= 3: # Q1
+            start_date = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            # Ende März: Letzter Tag des Monats (31)
+            end_date = now.replace(month=3, day=31, hour=23, minute=59, second=59, microsecond=999999)
+        elif 4 <= current_month <= 6: # Q2
+            start_date = now.replace(month=4, day=1, hour=0, minute=0, second=0, microsecond=0)
+            end_date = now.replace(month=6, day=30, hour=23, minute=59, second=59, microsecond=999999)
+        elif 7 <= current_month <= 9: # Q3
+            start_date = now.replace(month=7, day=1, hour=0, minute=0, second=0, microsecond=0)
+            end_date = now.replace(month=9, day=30, hour=23, minute=59, second=59, microsecond=999999)
+        else: # Q4 (10 <= current_month <= 12)
+            start_date = now.replace(month=10, day=1, hour=0, minute=0, second=0, microsecond=0)
+            end_date = now.replace(month=12, day=31, hour=23, minute=59, second=59, microsecond=999999)
+    elif period_filter_str == 'current_year':
+        start_date = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        end_date = now.replace(month=12, day=31, hour=23, minute=59, second=59, microsecond=999999)
+    
+    return start_date, end_date
+
+
+def get_filtered_coachings_subquery(period_filter_str=None):
+    """ Erstellt eine Subquery für Coachings, optional gefiltert nach Zeitraum. """
     coachings_base_q = db.session.query(
         Coaching.id.label("coaching_id_sq"),
         Coaching.team_member_id.label("team_member_id_sq"),
         Coaching.performance_mark.label("performance_mark_sq"),
         Coaching.time_spent.label("time_spent_sq"),
-        Coaching.coaching_subject.label("coaching_subject_sq"),
-        Coaching.coaching_date # Wird für den Datumsfilter in der Subquery benötigt
+        Coaching.coaching_subject.label("coaching_subject_sq")
+        # Coaching.coaching_date wird für den Filter benötigt, muss aber nicht im Select der Subquery sein,
+        # wenn der Filter direkt auf Coaching.coaching_date angewendet wird.
     )
-    if date_from_str:
-        try:
-            date_from_obj = datetime.strptime(date_from_str, '%Y-%m-%d').replace(hour=0, minute=0, second=0, tzinfo=timezone.utc)
-            coachings_base_q = coachings_base_q.filter(Coaching.coaching_date >= date_from_obj)
-        except ValueError:
-            flash(f"Ungültiges 'Von Datum' Format: {date_from_str}. Bitte YYYY-MM-DD verwenden.", "warning")
-            pass 
+    
+    start_date, end_date = calculate_date_range(period_filter_str)
 
-    if date_to_str:
-        try:
-            date_to_obj = datetime.strptime(date_to_str, '%Y-%m-%d').replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
-            coachings_base_q = coachings_base_q.filter(Coaching.coaching_date <= date_to_obj)
-        except ValueError:
-            flash(f"Ungültiges 'Bis Datum' Format: {date_to_str}. Bitte YYYY-MM-DD verwenden.", "warning")
-            pass
+    if start_date:
+        coachings_base_q = coachings_base_q.filter(Coaching.coaching_date >= start_date)
+    if end_date:
+        coachings_base_q = coachings_base_q.filter(Coaching.coaching_date <= end_date)
             
     return coachings_base_q.subquery('filtered_coachings_sq')
 
 
-def get_performance_data_for_charts(date_from_str=None, date_to_str=None, selected_team_id_str=None):
+def get_performance_data_for_charts(period_filter_str=None, selected_team_id_str=None):
     """ Aggregiert Coaching-Daten für die Performance-Charts. """
-    
-    filtered_coachings_sq = get_filtered_coachings_subquery(date_from_str, date_to_str)
+    filtered_coachings_sq = get_filtered_coachings_subquery(period_filter_str)
 
     query = db.session.query(
         Team.id.label('team_id'),
@@ -70,20 +100,17 @@ def get_performance_data_for_charts(date_from_str=None, date_to_str=None, select
     }
     return chart_data
 
-def get_coaching_subject_distribution(date_from_str=None, date_to_str=None, selected_team_id_str=None):
+def get_coaching_subject_distribution(period_filter_str=None, selected_team_id_str=None):
     """ Ermittelt die Verteilung der Coaching-Themen. """
-    
-    filtered_coachings_sq = get_filtered_coachings_subquery(date_from_str, date_to_str)
+    filtered_coachings_sq = get_filtered_coachings_subquery(period_filter_str)
 
     query = db.session.query(
         filtered_coachings_sq.c.coaching_subject_sq.label('coaching_subject'), 
         func.count(filtered_coachings_sq.c.coaching_id_sq).label('count')
     ).select_from(filtered_coachings_sq)\
-     .filter(filtered_coachings_sq.c.coaching_subject_sq.isnot(None)) # Nur Coachings mit gesetztem Thema
+     .filter(filtered_coachings_sq.c.coaching_subject_sq.isnot(None))
 
     if selected_team_id_str and selected_team_id_str.isdigit():
-        # Um nach Team zu filtern, müssen wir TeamMember mit der Subquery verbinden
-        # (angenommen, TeamMember.id ist in der Subquery als team_member_id_sq vorhanden)
         query = query.join(TeamMember, filtered_coachings_sq.c.team_member_id_sq == TeamMember.id)\
                      .filter(TeamMember.team_id == int(selected_team_id_str))
     
@@ -101,26 +128,18 @@ def get_coaching_subject_distribution(date_from_str=None, date_to_str=None, sele
 @login_required
 def index():
     page = request.args.get('page', 1, type=int)
-    date_from_arg = request.args.get('date_from') 
-    date_to_arg = request.args.get('date_to')     
+    period_filter_arg = request.args.get('period', 'all') 
     team_filter_arg = request.args.get('team', "all") 
 
     # --- Daten für die paginierte Coaching-Liste ---
     coachings_list_query = Coaching.query 
+    
+    start_date, end_date = calculate_date_range(period_filter_arg)
+    if start_date:
+        coachings_list_query = coachings_list_query.filter(Coaching.coaching_date >= start_date)
+    if end_date:
+        coachings_list_query = coachings_list_query.filter(Coaching.coaching_date <= end_date)
 
-    # Datumsfilter für die Liste
-    if date_from_arg:
-        try:
-            date_from_obj = datetime.strptime(date_from_arg, '%Y-%m-%d').replace(hour=0, minute=0, second=0, tzinfo=timezone.utc)
-            coachings_list_query = coachings_list_query.filter(Coaching.coaching_date >= date_from_obj)
-        except ValueError: pass
-    if date_to_arg:
-        try:
-            date_to_obj = datetime.strptime(date_to_arg, '%Y-%m-%d').replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
-            coachings_list_query = coachings_list_query.filter(Coaching.coaching_date <= date_to_obj)
-        except ValueError: pass
-
-    # Rollen- und Teamfilter für die Liste
     if current_user.role == ROLE_TEAMLEITER:
         if not current_user.team_id_if_leader:
             flash("Ihnen ist kein Team zugewiesen. Die Coaching-Liste ist leer.", "warning")
@@ -133,25 +152,19 @@ def index():
                 coachings_list_query = coachings_list_query.filter(
                     or_(Coaching.team_member_id.in_(team_members_ids), Coaching.coach_id == current_user.id)
                 )
-    elif team_filter_arg and team_filter_arg.isdigit(): # Für Admins etc., wenn ein spezifisches Team ausgewählt ist
+    elif team_filter_arg and team_filter_arg.isdigit():
             team_id_int = int(team_filter_arg)
             coachings_list_query = coachings_list_query.join(TeamMember).filter(TeamMember.team_id == team_id_int)
-    # Wenn Admin etc. und "Alle Teams" (team_filter_arg == "all"), wird die Liste nicht weiter nach Team gefiltert
 
     coachings_paginated = coachings_list_query.order_by(desc(Coaching.coaching_date)).paginate(page=page, per_page=10, error_out=False)
-    total_coachings_in_list = coachings_list_query.count() # count() auf die möglicherweise gefilterte Query
+    total_coachings_in_list = coachings_list_query.count()
     
     # --- Daten für die Charts ---
-    # Die Filterargumente date_from_arg, date_to_arg, team_filter_arg werden direkt an die Chart-Funktionen übergeben
-    chart_data = get_performance_data_for_charts(date_from_arg, date_to_arg, team_filter_arg)
-    subject_distribution_data = get_coaching_subject_distribution(date_from_arg, date_to_arg, team_filter_arg)
+    chart_data = get_performance_data_for_charts(period_filter_arg, team_filter_arg)
+    subject_distribution_data = get_coaching_subject_distribution(period_filter_arg, team_filter_arg)
     
     all_teams_for_filter_dropdown = Team.query.order_by(Team.name).all()
     
-    # Debug-Prints hier, wie du sie hattest, sind gut zum Überprüfen.
-    # print("---- DEBUG: Daten für index.html Template ----")
-    # ...
-
     return render_template('main/index.html', 
                            title='Dashboard - Alle Coachings',
                            coachings_paginated=coachings_paginated, 
@@ -163,8 +176,7 @@ def index():
                            subject_chart_labels=subject_distribution_data['labels'],
                            subject_chart_values=subject_distribution_data['values'],
                            all_teams_for_filter=all_teams_for_filter_dropdown,
-                           current_date_from=date_from_arg, # Für Vorbelegung der Filterfelder
-                           current_date_to=date_to_arg,     # Für Vorbelegung
+                           current_period_filter=period_filter_arg, 
                            current_team_id_filter=team_filter_arg)
 
 # --- `team_view`-Route ---
@@ -183,7 +195,7 @@ def team_view():
             flash("Ihnen ist kein Team zugewiesen.", "warning")
             return redirect(url_for('main.index'))
         team = Team.query.get(current_user.team_id_if_leader)
-        if team: page_title_prefix = "Mein Team" # Titelanpassung
+        if team: page_title_prefix = "Mein Team"
     elif view_team_id:
         if current_user.role not in [ROLE_ADMIN, ROLE_PROJEKTLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER]:
             abort(403)
@@ -208,7 +220,7 @@ def team_view():
         for member in team.members:
             member_coachings = member.coachings_received.all() 
             avg_score = sum(c.overall_score for c in member_coachings) / len(member_coachings) if member_coachings else 0
-            total_time = sum(c.time_spent for c in member_coachings if c.time_spent is not None) # Sicherstellen, dass time_spent nicht None ist
+            total_time = sum(c.time_spent for c in member_coachings if c.time_spent is not None)
             team_members_performance.append({
                 'name': member.name, 'avg_score': round(avg_score, 2),
                 'total_coachings': len(member_coachings), 'total_coaching_time': total_time
@@ -273,11 +285,13 @@ def add_coaching():
             if (styleSelect && tcapIdField) { 
                 if (styleSelect.value === 'TCAP') {
                     tcapIdField.style.display = '';
-                    document.getElementById('tcap_id').required = true;
+                    if(document.getElementById('tcap_id')) document.getElementById('tcap_id').required = true;
                 } else {
                     tcapIdField.style.display = 'none';
-                    document.getElementById('tcap_id').value = '';
-                    document.getElementById('tcap_id').required = false;
+                    if(document.getElementById('tcap_id')) {
+                        document.getElementById('tcap_id').value = '';
+                        document.getElementById('tcap_id').required = false;
+                    }
                 }
             }
         }
@@ -303,19 +317,18 @@ def pl_qm_dashboard():
     elif current_user.role == ROLE_QM: dashboard_title = "Quality Coach Dashboard"
 
     if request.method == 'POST' and 'submit_note' in request.form:
-        form_to_validate = ProjectLeaderNoteForm(request.form) 
+        form_for_validation = ProjectLeaderNoteForm(request.form) 
         coaching_id_str = request.form.get('coaching_id')
         form_errors = False
         if not coaching_id_str:
             flash("Coaching-ID fehlt oder konnte nicht übermittelt werden.", 'danger')
             form_errors = True
-        if not form_to_validate.validate(): # Validiert 'notes' und CSRF
-            for fieldName, errorMessages in form_to_validate.errors.items():
-                for err in errorMessages: 
-                    flash(f"Validierungsfehler im Feld '{form_to_validate[fieldName].label.text}': {err}", 'danger')
+        if not form_for_validation.validate():
+            for fieldName, errorMessages in form_for_validation.errors.items():
+                for err in errorMessages: flash(f"Validierungsfehler im Feld '{form_for_validation[fieldName].label.text}': {err}", 'danger')
             form_errors = True
         if not form_errors:
-            notes_data = form_to_validate.notes.data
+            notes_data = form_for_validation.notes.data
             try:
                 coaching_id_int = int(coaching_id_str)
                 coaching_to_update = Coaching.query.get_or_404(coaching_id_int)
@@ -339,14 +352,14 @@ def pl_qm_dashboard():
             func.coalesce(func.count(Coaching.id), 0).label('num_coachings')
         ).join(TeamMember, Coaching.team_member_id == TeamMember.id)\
          .filter(TeamMember.team_id == team_obj.id).first()
-        if team_stats: # team_stats kann None sein, wenn ein Team keine Coachings hat
+        if team_stats:
             all_teams_data.append({
                 'id': team_obj.id, 'name': team_obj.name,
                 'num_coachings': team_stats.num_coachings if team_stats.num_coachings is not None else 0,
                 'avg_score': round(team_stats.avg_performance_mark_scaled, 2) if team_stats.avg_performance_mark_scaled is not None else 0, 
                 'total_time': team_stats.total_time if team_stats.total_time is not None else 0
             })
-        else: # Fallback, falls team_stats None ist
+        else:
             all_teams_data.append({
                 'id': team_obj.id, 'name': team_obj.name,
                 'num_coachings': 0, 'avg_score': 0, 'total_time': 0
