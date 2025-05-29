@@ -232,7 +232,7 @@ def pl_qm_dashboard():
     coachings_query = Coaching.query.order_by(desc(Coaching.coaching_date)) # .filter(Coaching.is_archived == False) ENTFERNT
     coachings_paginated = coachings_query.paginate(page=page, per_page=10, error_out=False)
     note_form_display = ProjectLeaderNoteForm() 
-    dashboard_title = "Quality Coach Dashboard" if current_user.role == ROLE_QM else "Projektleiter Dashboard"
+    dashboard_title = "Quality Coach Dashboard" if current_user.role == ROLE_QM else "AL/PL Dashboard"
     if request.method == 'POST' and 'submit_note' in request.form:
         form_for_validation = ProjectLeaderNoteForm(request.form); coaching_id_str = request.form.get('coaching_id'); form_errors = False
         if not coaching_id_str: flash("Coaching-ID fehlt.", 'danger'); form_errors = True
