@@ -125,6 +125,6 @@ class CoachingForm(FlaskForm):
                 self.team_member_id.choices = [(0, "Keine Teammitglieder gefunden")]
 
 class ProjectLeaderNoteForm(FlaskForm):
-    coaching_id = HiddenField(validators=[DataRequired("Coaching-ID fehlt.")]) # Validator hinzugefügt
+    coaching_id = HiddenField()
     notes = TextAreaField('Notizen des Projektleiters', validators=[DataRequired("Die Notiz darf nicht leer sein."), Length(max=2000)])
     submit = SubmitField('Notiz speichern')
