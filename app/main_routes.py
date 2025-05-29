@@ -7,7 +7,8 @@ from app.forms import CoachingForm, ProjectLeaderNoteForm
 from app.utils import role_required, ROLE_ADMIN, ROLE_PROJEKTLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER, ROLE_TEAMLEITER
 from sqlalchemy import desc, func, or_, and_
 from datetime import datetime, timedelta, timezone
-import sqlalchemy
+import sqlalchemy # Für sqlalchemy.sql.false()
+from calendar import monthrange # Für die Berechnung des letzten Tages im Monat
 
 bp = Blueprint('main', __name__)
 
@@ -19,7 +20,7 @@ def calculate_date_range(period_filter_str=None):
     Gibt (start_date, end_date) oder (None, None) zurück.
     """
     now = datetime.now(timezone.utc)
-    start_date, end_date = None, None # Default für "Alles"
+    start_date, end_date = None, None 
 
     if period_filter_str == '7days':
         start_date = now - timedelta(days=6) 
@@ -31,22 +32,23 @@ def calculate_date_range(period_filter_str=None):
         end_date = now.replace(hour=23, minute=59, second=59, microsecond=999999)
     elif period_filter_str == 'current_quarter':
         current_month = now.month
+        year = now.year
         if 1 <= current_month <= 3: # Q1
-            start_date = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
-            # Ende März: Letzter Tag des Monats (31)
-            end_date = now.replace(month=3, day=31, hour=23, minute=59, second=59, microsecond=999999)
+            start_date = datetime(year, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+            end_date = datetime(year, 3, monthrange(year, 3)[1], 23, 59, 59, 999999, tzinfo=timezone.utc)
         elif 4 <= current_month <= 6: # Q2
-            start_date = now.replace(month=4, day=1, hour=0, minute=0, second=0, microsecond=0)
-            end_date = now.replace(month=6, day=30, hour=23, minute=59, second=59, microsecond=999999)
+            start_date = datetime(year, 4, 1, 0, 0, 0, tzinfo=timezone.utc)
+            end_date = datetime(year, 6, monthrange(year, 6)[1], 23, 59, 59, 999999, tzinfo=timezone.utc)
         elif 7 <= current_month <= 9: # Q3
-            start_date = now.replace(month=7, day=1, hour=0, minute=0, second=0, microsecond=0)
-            end_date = now.replace(month=9, day=30, hour=23, minute=59, second=59, microsecond=999999)
+            start_date = datetime(year, 7, 1, 0, 0, 0, tzinfo=timezone.utc)
+            end_date = datetime(year, 9, monthrange(year, 9)[1], 23, 59, 59, 999999, tzinfo=timezone.utc)
         else: # Q4 (10 <= current_month <= 12)
-            start_date = now.replace(month=10, day=1, hour=0, minute=0, second=0, microsecond=0)
-            end_date = now.replace(month=12, day=31, hour=23, minute=59, second=59, microsecond=999999)
+            start_date = datetime(year, 10, 1, 0, 0, 0, tzinfo=timezone.utc)
+            end_date = datetime(year, 12, monthrange(year, 12)[1], 23, 59, 59, 999999, tzinfo=timezone.utc)
     elif period_filter_str == 'current_year':
-        start_date = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
-        end_date = now.replace(month=12, day=31, hour=23, minute=59, second=59, microsecond=999999)
+        year = now.year
+        start_date = datetime(year, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+        end_date = datetime(year, 12, monthrange(year, 12)[1], 23, 59, 59, 999999, tzinfo=timezone.utc)
     
     return start_date, end_date
 
@@ -59,9 +61,7 @@ def get_filtered_coachings_subquery(period_filter_str=None):
         Coaching.performance_mark.label("performance_mark_sq"),
         Coaching.time_spent.label("time_spent_sq"),
         Coaching.coaching_subject.label("coaching_subject_sq")
-        # Coaching.coaching_date wird für den Filter benötigt, muss aber nicht im Select der Subquery sein,
-        # wenn der Filter direkt auf Coaching.coaching_date angewendet wird.
-    )
+    ) # .filter(Coaching.is_archived == False) # Entfernt, da is_archived nicht mehr verwendet wird
     
     start_date, end_date = calculate_date_range(period_filter_str)
 
@@ -131,19 +131,21 @@ def index():
     period_filter_arg = request.args.get('period', 'all') 
     team_filter_arg = request.args.get('team', "all") 
 
-    # --- Subquery für gefilterte Coachings (wird für Charts UND neue Boxen verwendet) ---
-    filtered_coachings_sq = get_filtered_coachings_subquery(period_filter_arg) # Nimmt jetzt nur period
-                                                                             # Teamfilter wird später auf die aggregierten Daten angewendet
+    # Beginne IMMER mit einer Basis-Query
+    coachings_list_query = Coaching.query
+    # .filter(Coaching.is_archived == False) # Entfernt, da is_archived nicht mehr verwendet wird
 
-    # --- Daten für die paginierte Coaching-Liste (bleibt wie zuvor, mit eigener Filterlogik) ---
+    # Berechne Datumsbereich basierend auf period_filter_arg
     start_date_list, end_date_list = calculate_date_range(period_filter_arg)
     if start_date_list:
         coachings_list_query = coachings_list_query.filter(Coaching.coaching_date >= start_date_list)
     if end_date_list:
         coachings_list_query = coachings_list_query.filter(Coaching.coaching_date <= end_date_list)
 
+    # Rollenspezifische Filterung für die LISTE
     if current_user.role == ROLE_TEAMLEITER:
         if not current_user.team_id_if_leader:
+            flash("Ihnen ist kein Team zugewiesen. Die Coaching-Liste ist leer.", "warning")
             coachings_list_query = Coaching.query.filter(sqlalchemy.sql.false()) 
         else:
             team_members_ids = [member.id for member in TeamMember.query.filter_by(team_id=current_user.team_id_if_leader).all()]
@@ -153,45 +155,21 @@ def index():
                 coachings_list_query = coachings_list_query.filter(
                     or_(Coaching.team_member_id.in_(team_members_ids), Coaching.coach_id == current_user.id)
                 )
-    elif team_filter_arg and team_filter_arg.isdigit():
+    elif team_filter_arg and team_filter_arg.isdigit(): 
             team_id_int = int(team_filter_arg)
             coachings_list_query = coachings_list_query.join(TeamMember).filter(TeamMember.team_id == team_id_int)
     
     coachings_paginated = coachings_list_query.order_by(desc(Coaching.coaching_date)).paginate(page=page, per_page=10, error_out=False)
     total_coachings_in_list = coachings_list_query.count()
     
-    # --- Daten für die Charts (verwenden auch die Filter) ---
     chart_data = get_performance_data_for_charts(period_filter_arg, team_filter_arg)
     subject_distribution_data = get_coaching_subject_distribution(period_filter_arg, team_filter_arg)
-    
-    # --- NEU: Daten für die Info-Boxen ---
-    # Wir verwenden die gefilterte Subquery und wenden ggf. den Teamfilter an
-    summary_query = db.session.query(
-        func.count(filtered_coachings_sq.c.coaching_id_sq).label('total_filtered_coachings'),
-        func.coalesce(func.sum(filtered_coachings_sq.c.time_spent_sq), 0).label('total_filtered_time_spent')
-    ).select_from(filtered_coachings_sq) # Starten mit der bereits nach Datum gefilterten Subquery
-
-    if team_filter_arg and team_filter_arg.isdigit():
-        # Join mit TeamMember, um nach Team-ID zu filtern
-        summary_query = summary_query.join(TeamMember, filtered_coachings_sq.c.team_member_id_sq == TeamMember.id)\
-                                   .filter(TeamMember.team_id == int(team_filter_arg))
-    
-    summary_stats = summary_query.first()
-
-    total_filtered_coachings_count = summary_stats.total_filtered_coachings if summary_stats else 0
-    total_filtered_time_minutes = summary_stats.total_filtered_time_spent if summary_stats else 0
-
-    # Umrechnung in Stunden und Minuten
-    hours_coached = total_filtered_time_minutes // 60
-    minutes_coached_remainder = total_filtered_time_minutes % 60
-    time_coached_display = f"{hours_coached} Std. {minutes_coached_remainder} Min. ({total_filtered_time_minutes} Min.)"
-    
     all_teams_for_filter_dropdown = Team.query.order_by(Team.name).all()
     
     return render_template('main/index.html', 
                            title='Dashboard - Alle Coachings',
                            coachings_paginated=coachings_paginated, 
-                           total_coachings=total_coachings_in_list, # Gesamt für die Liste unten
+                           total_coachings=total_coachings_in_list,
                            chart_labels=chart_data['labels'],
                            chart_avg_performance_mark_percentage=chart_data['avg_performance_values'], 
                            chart_avg_time_spent=chart_data['avg_time_spent_values'],
@@ -200,13 +178,8 @@ def index():
                            subject_chart_values=subject_distribution_data['values'],
                            all_teams_for_filter=all_teams_for_filter_dropdown,
                            current_period_filter=period_filter_arg, 
-                           current_team_id_filter=team_filter_arg,
-                           # NEUE Variablen für die Boxen
-                           total_filtered_coachings_count=total_filtered_coachings_count,
-                           time_coached_display=time_coached_display
-                           )
+                           current_team_id_filter=team_filter_arg)
 
-# --- `team_view`-Route ---
 @bp.route('/team_view')
 @login_required
 @role_required([ROLE_TEAMLEITER, ROLE_ADMIN, ROLE_PROJEKTLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER])
@@ -242,10 +215,12 @@ def team_view():
             
     if team:
         team_member_ids = [member.id for member in team.members]
+        # .filter(Coaching.is_archived == False) entfernt, falls nicht mehr verwendet
         team_coachings_query = Coaching.query.filter(Coaching.team_member_id.in_(team_member_ids))
         team_coachings_list = team_coachings_query.order_by(desc(Coaching.coaching_date)).limit(20).all()
         for member in team.members:
-            member_coachings = member.coachings_received.all() 
+            # .filter(is_archived=False) entfernt, falls nicht mehr verwendet
+            member_coachings = Coaching.query.filter_by(team_member_id=member.id).all() 
             avg_score = sum(c.overall_score for c in member_coachings) / len(member_coachings) if member_coachings else 0
             total_time = sum(c.time_spent for c in member_coachings if c.time_spent is not None)
             team_members_performance.append({
@@ -264,8 +239,6 @@ def team_view():
                            team_members_performance=team_members_performance,
                            all_teams_list=all_teams_list)
 
-
-# --- `add_coaching`-Route ---
 @bp.route('/coaching/add', methods=['GET', 'POST'])
 @login_required
 @role_required([ROLE_TEAMLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER, ROLE_ADMIN])
@@ -327,15 +300,15 @@ def add_coaching():
             toggleTcapField(); 
         }
     });
-    """
+    """ # Der tcap_js String sollte hier vollständig sein
     return render_template('main/add_coaching.html', title='Coaching hinzufügen', form=form, tcap_js=tcap_js)
 
-# --- `pl_qm_dashboard`-Route ---
 @bp.route('/coaching_review_dashboard', methods=['GET', 'POST'])
 @login_required
 @role_required([ROLE_PROJEKTLEITER, ROLE_QM])
 def pl_qm_dashboard():
     page = request.args.get('page', 1, type=int)
+    # .filter(Coaching.is_archived == False) entfernt, falls nicht mehr verwendet
     coachings_query = Coaching.query.order_by(desc(Coaching.coaching_date))
     coachings_paginated = coachings_query.paginate(page=page, per_page=10, error_out=False)
     note_form_display = ProjectLeaderNoteForm() 
@@ -373,12 +346,14 @@ def pl_qm_dashboard():
     all_teams_data = []
     teams_list = Team.query.all()
     for team_obj in teams_list: 
+        # .filter(Coaching.is_archived == False) entfernt, falls nicht mehr verwendet
         team_stats = db.session.query(
             func.coalesce(func.avg(Coaching.performance_mark * 10.0), 0).label('avg_performance_mark_scaled'), 
             func.coalesce(func.sum(Coaching.time_spent), 0).label('total_time'),
             func.coalesce(func.count(Coaching.id), 0).label('num_coachings')
         ).join(TeamMember, Coaching.team_member_id == TeamMember.id)\
-         .filter(TeamMember.team_id == team_obj.id).first()
+         .filter(TeamMember.team_id == team_obj.id).first() # Filter für nicht-archivierte Coachings hier, wenn nötig
+        
         if team_stats:
             all_teams_data.append({
                 'id': team_obj.id, 'name': team_obj.name,
