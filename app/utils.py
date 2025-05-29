@@ -29,9 +29,9 @@ def role_required(role_name_or_list):
 
 # Konstanten für Rollen (um Tippfehler zu vermeiden)
 ROLE_ADMIN = 'Admin'
-ROLE_PROJEKTLEITER = 'Projektleiter'
-ROLE_QM = 'Qualitätsmanager'
-ROLE_SALESCOACH = 'SalesCoach'
+ROLE_PROJEKTLEITER = 'AL/PL'
+ROLE_QM = 'Qualitäts-Coach'
+ROLE_SALESCOACH = 'Sales-Coach'
 ROLE_TRAINER = 'Trainer'
 ROLE_TEAMLEITER = 'Teamleiter'
 # Teammitglied ist keine Rolle, die spezielle Rechte hat, sondern eher der Standard.
