@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ title }} - Coaching Tracker</title>
+    <title>{{ title }} - GK MoFu - Coaching</title>
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     {% block head_extra %}{% endblock %}
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <a class="navbar-brand telekom-brand" href="{{ url_for('main.index') }}">Coaching Tracker</a>
+        <a class="navbar-brand telekom-brand" href="{{ url_for('main.index') }}">GK MoFu - Coaching</a>
         <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
@@ -24,10 +24,8 @@
                     {% if current_user.role == 'Teamleiter' and current_user.team_id_if_leader %}
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('main.team_view') }}">Meine Team Ansicht</a></li>
                     {% endif %}
-                    {# ANGEPASSTER LINK HIER #}
                     {% if current_user.role in ['Projektleiter', 'Qualitätsmanager'] %} 
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('main.pl_qm_dashboard') }}">Review Dashboard</a></li> 
-                        {# Text könnte auch dynamisch sein, aber "Review Dashboard" ist neutral #}
                     {% endif %}
                     {% if current_user.role == 'Admin' %}
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.panel') }}">Admin Panel</a></li>
@@ -63,13 +61,14 @@
     </div>
 
     <footer class="text-center mt-5 mb-3">
-        <p>© {{ current_year }} Deine Firma - Coaching Tracker</p>
+        <p>© {{ current_year }} GK MoFu - Coaching</p>
     </footer>
 
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.3/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> {# CHART.JS HINZUGEFÜGT #}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> 
+    {# Chart.js Plugins werden im 'scripts'-Block der jeweiligen Seite geladen, die sie benötigt #}
     {% block scripts %}{% endblock %}
 </body>
 </html>
