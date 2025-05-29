@@ -68,7 +68,7 @@
             <tbody>
                 {% for coaching in coachings_paginated.items %}
                 <tr>
-                    <td>{{ coaching.coaching_date.strftime('%d.%m.%Y %H:%M') }}</td>
+                    <td>{{ coaching.coaching_date|athens_time }}</td>
                     <td>{{ coaching.team_member_coached.name if coaching.team_member_coached else 'N/A' }}</td>
                     <td>{{ coaching.team_member_coached.team.name if coaching.team_member_coached and coaching.team_member_coached.team else 'N/A' }}</td>
                     <td>{{ coaching.coach.username if coaching.coach else 'N/A' }}</td>
@@ -100,7 +100,7 @@
                                     <p>
                                         <strong>Teammitglied:</strong> {{ coaching.team_member_coached.name if coaching.team_member_coached else 'N/A' }}<br>
                                         <strong>Coach:</strong> {{ coaching.coach.username if coaching.coach else 'N/A' }}<br>
-                                        <strong>Datum:</strong> {{ coaching.coaching_date.strftime('%d.%m.%Y %H:%M') }}<br>
+                                        <strong>Datum:</strong> {{ coaching.coaching_date|athens_time }}<br>
                                         <strong>Betreff:</strong> {{ coaching.coaching_subject if coaching.coaching_subject else '-' }}<br>
                                         <strong>Stil:</strong> {{ coaching.coaching_style if coaching.coaching_style else '-'}} 
                                         {% if coaching.coaching_style == 'TCAP' and coaching.tcap_id %}(T-CAP ID: {{ coaching.tcap_id }}){% endif %}
