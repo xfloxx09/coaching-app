@@ -22,10 +22,10 @@
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('main.add_coaching') }}">Coaching hinzufügen</a></li>
                     {% endif %}
                     {% if current_user.role == 'Teamleiter' and current_user.team_id_if_leader %}
-                        <li class="nav-item"><a class="nav-link" href="{{ url_for('main.team_view') }}">Meine Team Ansicht</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('main.team_view') }}">Mein Team</a></li>
                     {% endif %}
                     {% if current_user.role in ['Projektleiter', 'Qualitätsmanager'] %} 
-                        <li class="nav-item"><a class="nav-link" href="{{ url_for('main.pl_qm_dashboard') }}">Review Dashboard</a></li> 
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('main.pl_qm_dashboard') }}">Notizen</a></li> 
                     {% endif %}
                     {% if current_user.role == 'Admin' %}
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.panel') }}">Admin Panel</a></li>
