@@ -1,35 +1,121 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>{{ title }}</h2>
-<p>Hier können Sie Notizen zu bestehenden Coachings hinzufügen.</p>
+<h2>{{ title }}</h2> {# Der Titel wird von der Route gesetzt (z.B. "Projektleiter Dashboard" oder "Quality Coach Dashboard") #}
 
-{# ... (Top/Flop Teams Anzeige bleibt gleich) ... #}
+{# Top/Flop Teams Anzeige - Dieser Teil sollte von deiner letzten funktionierenden Version sein #}
+{% if top_3_teams or flop_3_teams %}
     <div class="row mb-4">
-        {# ... #}
+        {% if top_3_teams %}
+        <div class="col-md-6 mb-3">
+            <div class="card h-100">
+                <div class="card-header telekom-bg-magenta text-white">Top 3 Teams (nach Ø Performance Mark & Coachings)</div>
+                <ul class="list-group list-group-flush">
+                    {% for team_data in top_3_teams %}
+                        <li class="list-group-item" style="background-color: #2b2b2b; color: #f0f0f0; border-color: #444;">
+                            <strong>{{ loop.index }}. {{ team_data.name }}</strong><br> 
+                            <small>
+                                Ø Score (bas. Perf.Mark): {{ team_data.avg_score }}% | 
+                                Coachings: {{ team_data.num_coachings }} | 
+                                Gesamtzeit: {{ team_data.total_time }} Min.
+                            </small>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+        {% if flop_3_teams %}
+        <div class="col-md-6 mb-3">
+            <div class="card h-100">
+                <div class="card-header telekom-bg-magenta text-white">Niedrigste 3 Teams (nach Ø Performance Mark & Coachings)</div>
+                 <ul class="list-group list-group-flush">
+                    {% for team_data in flop_3_teams %}
+                        <li class="list-group-item" style="background-color: #2b2b2b; color: #f0f0f0; border-color: #444;">
+                            <strong>{{ loop.index }}. {{ team_data.name }}</strong><br>
+                            <small>
+                                Ø Score (bas. Perf.Mark): {{ team_data.avg_score }}% | 
+                                Coachings: {{ team_data.num_coachings }} | 
+                                Gesamtzeit: {{ team_data.total_time }} Min.
+                            </small>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
     </div>
     <hr>
+{% endif %}
 
-    <p>Hier können Sie Notizen zu bestehenden Coachings hinzufügen.</p>
-    
-    {% if coachings_paginated and coachings_paginated.items %}
+<p>Hier können Sie Notizen zu bestehenden Coachings hinzufügen.</p>
+
+{% if coachings_paginated and coachings_paginated.items %}
     <div class="table-responsive">
         <table class="table table-striped table-hover">
-            {# ... (Tabellenkopf bleibt gleich) ... #}
+            <thead class="telekom-bg-magenta text-white">
+                <tr>
+                    <th>Datum</th>
+                    <th>Teammitglied</th>
+                    <th>Team</th>
+                    <th>Coach</th>
+                    <th>Betreff</th>
+                    <th>Score (%)</th>
+                    <th>PL/QM Notiz</th>
+                    <th>Aktion</th>
+                </tr>
+            </thead>
             <tbody>
                 {% for coaching in coachings_paginated.items %}
                 <tr>
-                    {# ... (Tabellenzellen bleiben gleich) ... #}
+                    <td>{{ coaching.coaching_date.strftime('%d.%m.%Y %H:%M') }}</td>
+                    <td>{{ coaching.team_member_coached.name if coaching.team_member_coached else 'N/A' }}</td>
+                    <td>{{ coaching.team_member_coached.team.name if coaching.team_member_coached and coaching.team_member_coached.team else 'N/A' }}</td>
+                    <td>{{ coaching.coach.username if coaching.coach else 'N/A' }}</td>
+                    <td>{{ coaching.coaching_subject if coaching.coaching_subject else '-' }}</td>
+                    <td>{{ coaching.overall_score }}%</td>
+                    <td id="notes-display-{{ coaching.id }}">
+                        {{ coaching.project_leader_notes[:50] + '...' if coaching.project_leader_notes and coaching.project_leader_notes|length > 50 else coaching.project_leader_notes if coaching.project_leader_notes else 'Keine Notiz' }}
+                    </td>
+                    <td>
+                        <button class="btn btn-sm telekom-button-outline" type="button" data-toggle="modal" data-target="#noteModal-{{ coaching.id }}">
+                            Notiz {{ 'bearbeiten' if coaching.project_leader_notes else 'hinzufügen' }}
+                        </button>
+                    </td>
                 </tr>
                 <!-- Modal für Notizen -->
                 <div class="modal fade" id="noteModal-{{ coaching.id }}" tabindex="-1" role="dialog" aria-labelledby="noteModalLabel-{{ coaching.id }}" aria-hidden="true">
                     <div class="modal-dialog" role="document">
                         <div class="modal-content">
-                            {# KORRIGIERTES ACTION ATTRIBUT #}
                             <form method="POST" action="{{ url_for('main.pl_qm_dashboard', page=coachings_paginated.page if coachings_paginated and coachings_paginated.page else 1) }}">
                                 {{ note_form.csrf_token }}
                                 <input type="hidden" name="coaching_id" value="{{ coaching.id }}">
-                                {# ... (Rest des Modal-Inhalts bleibt gleich) ... #}
+                                <div class="modal-header telekom-bg-magenta text-white">
+                                    <h5 class="modal-title" id="noteModalLabel-{{ coaching.id }}">Notiz für Coaching #{{ coaching.id }}</h5>
+                                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                                        <span aria-hidden="true">×</span>
+                                    </button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>
+                                        <strong>Teammitglied:</strong> {{ coaching.team_member_coached.name if coaching.team_member_coached else 'N/A' }}<br>
+                                        <strong>Coach:</strong> {{ coaching.coach.username if coaching.coach else 'N/A' }}<br>
+                                        <strong>Datum:</strong> {{ coaching.coaching_date.strftime('%d.%m.%Y %H:%M') }}<br>
+                                        <strong>Betreff:</strong> {{ coaching.coaching_subject if coaching.coaching_subject else '-' }}<br>
+                                        <strong>Stil:</strong> {{ coaching.coaching_style if coaching.coaching_style else '-'}} 
+                                        {% if coaching.coaching_style == 'TCAP' and coaching.tcap_id %}(T-CAP ID: {{ coaching.tcap_id }}){% endif %}
+                                    </p>
+                                    <hr>
+                                    <div class="form-group">
+                                        {{ note_form.notes.label(class="form-control-label") }}
+                                        {{ note_form.notes(class="form-control " + ( "is-invalid" if note_form.notes.errors else "" ), rows=5, value=(coaching.project_leader_notes if coaching.project_leader_notes else "")) }}
+                                        {% if note_form.notes.errors %} 
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in note_form.notes.errors %}<span>{{ error }}</span><br>{% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
                                 <div class="modal-footer">
                                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Abbrechen</button>
                                     <input type="submit" name="submit_note" class="btn telekom-button" value="Notiz speichern">
@@ -38,7 +124,7 @@
                         </div>
                     </div>
                 </div>
-                {% endfor %}
+                {% endfor %} {# Ende der for-Schleife für coachings #}
             </tbody>
         </table>
     </div>
@@ -46,7 +132,6 @@
     <nav aria-label="Coaching Navigation" class="mt-4">
          <ul class="pagination justify-content-center">
             {% if coachings_paginated.has_prev %}
-                {# KORRIGIERTES URL_FOR #}
                 <li class="page-item"><a class="page-link telekom-page-link" href="{{ url_for('main.pl_qm_dashboard', page=coachings_paginated.prev_num) }}">Vorherige</a></li>
             {% else %}
                 <li class="page-item disabled"><span class="page-link">Vorherige</span></li>
@@ -56,15 +141,13 @@
                     {% if coachings_paginated.page == page_num %}
                         <li class="page-item active"><span class="page-link telekom-page-active">{{ page_num }}</span></li>
                     {% else %}
-                        {# KORRIGIERTES URL_FOR #}
                         <li class="page-item"><a class="page-link telekom-page-link" href="{{ url_for('main.pl_qm_dashboard', page=page_num) }}">{{ page_num }}</a></li>
                     {% endif %}
                 {% else %}
                     <li class="page-item disabled"><span class="page-link">...</span></li>
                 {% endif %}
-            {% endfor %}
+            {% endfor %} {# Ende der for-Schleife für Paginierungsseiten #}
             {% if coachings_paginated.has_next %}
-                {# KORRIGIERTES URL_FOR #}
                 <li class="page-item"><a class="page-link telekom-page-link" href="{{ url_for('main.pl_qm_dashboard', page=coachings_paginated.next_num) }}">Nächste</a></li>
             {% else %}
                 <li class="page-item disabled"><span class="page-link">Nächste</span></li>
@@ -73,5 +156,5 @@
     </nav>
 {% else %}
     <p>Keine Coachings vorhanden.</p>
-{% endif %}
-{% endblock %}
+{% endif %} {# Ende des if coachings_paginated and coachings_paginated.items #}
+{% endblock %} {# Ende des block content #}
