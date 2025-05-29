@@ -20,10 +20,10 @@ class RegistrationForm(FlaskForm):
     )
     role = SelectField('Rolle', choices=[
         ('Teamleiter', 'Teamleiter'),
-        ('Qualitätsmanager', 'Qualitätsmanager'),
-        ('SalesCoach', 'Sales Coach'),
+        ('Qualitätsmanager', 'Qualitäts-Coach'),
+        ('SalesCoach', 'Sales-Coach'),
         ('Trainer', 'Trainer'),
-        ('Projektleiter', 'Projektleiter'),
+        ('Projektleiter', 'AL/PL'),
         ('Admin', 'Admin')
     ], validators=[DataRequired("Rolle ist erforderlich.")])
     team_id = SelectField('Team (nur für Teamleiter)', coerce=int, option_widget=None, choices=[])
