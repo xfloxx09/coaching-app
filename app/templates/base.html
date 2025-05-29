@@ -21,12 +21,13 @@
                     {% if current_user.role in ['Teamleiter', 'Qualitätsmanager', 'SalesCoach', 'Trainer', 'Admin'] %}
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('main.add_coaching') }}">Coaching hinzufügen</a></li>
                     {% endif %}
-                    {# Korrektur hier: current_user.team_id_if_leader verwenden #}
-                    {% if current_user.role == 'Teamleiter' and current_user.team_id_if_leader %} 
+                    {% if current_user.role == 'Teamleiter' and current_user.team_id_if_leader %}
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('main.team_view') }}">Meine Team Ansicht</a></li>
                     {% endif %}
-                    {% if current_user.role == 'Projektleiter' %}
-                        <li class="nav-item"><a class="nav-link" href="{{ url_for('main.projektleiter_dashboard') }}">PL Dashboard</a></li>
+                    {# ANGEPASSTER LINK HIER #}
+                    {% if current_user.role in ['Projektleiter', 'Qualitätsmanager'] %} 
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('main.pl_qm_dashboard') }}">Review Dashboard</a></li> 
+                        {# Text könnte auch dynamisch sein, aber "Review Dashboard" ist neutral #}
                     {% endif %}
                     {% if current_user.role == 'Admin' %}
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.panel') }}">Admin Panel</a></li>
