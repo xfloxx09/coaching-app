@@ -136,7 +136,6 @@ def index():
                                                                              # Teamfilter wird später auf die aggregierten Daten angewendet
 
     # --- Daten für die paginierte Coaching-Liste (bleibt wie zuvor, mit eigener Filterlogik) ---
-    coachings_list_query = Coaching.query.filter(Coaching.is_archived == False) # Basis-Filter
     start_date_list, end_date_list = calculate_date_range(period_filter_arg)
     if start_date_list:
         coachings_list_query = coachings_list_query.filter(Coaching.coaching_date >= start_date_list)
