@@ -21,8 +21,8 @@
                 {% for coaching in coachings_paginated.items %}
                 <tr>
                     <td>{{ coaching.coaching_date.strftime('%d.%m.%Y %H:%M') }}</td>
-                    <td>{{ coaching.team_member_coached.name }}</td>
-                    <td>{{ coaching.coach.username }}</td>
+                    <td>{{ coaching.team_member_coached.name if coaching.team_member_coached else 'N/A' }}</td>
+                    <td>{{ coaching.coach.username if coaching.coach else 'N/A' }}</td>
                     <td>{{ coaching.overall_score }}%</td>
                     <td id="notes-display-{{ coaching.id }}">
                         {{ coaching.project_leader_notes[:50] + '...' if coaching.project_leader_notes and coaching.project_leader_notes|length > 50 else coaching.project_leader_notes if coaching.project_leader_notes else 'Keine Notiz' }}
@@ -34,52 +34,49 @@
                     </td>
                 </tr>
                 <!-- Modal für Notizen -->
-              <div class="modal fade" id="noteModal-{{ coaching.id }}" tabindex="-1" role="dialog" aria-labelledby="noteModalLabel-{{ coaching.id }}" aria-hidden="true">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <form method="POST" action="{{ url_for('main.projektleiter_dashboard', page=coachings_paginated.page if coachings_paginated and coachings_paginated.page else 1) }}">
-                
-                {# Render CSRF token explicitly from the form object passed to the template #}
-                {{ note_form.csrf_token }} 
-                
-                {# Render your coaching_id manually to ensure it has the correct value #}
-                {# This will be the ONLY input field with name="coaching_id" #}
-                <input type="hidden" name="coaching_id" value="{{ coaching.id }}">
+                <div class="modal fade" id="noteModal-{{ coaching.id }}" tabindex="-1" role="dialog" aria-labelledby="noteModalLabel-{{ coaching.id }}" aria-hidden="true">
+                    <div class="modal-dialog" role="document">
+                        <div class="modal-content">
+                            <form method="POST" action="{{ url_for('main.projektleiter_dashboard', page=coachings_paginated.page if coachings_paginated and coachings_paginated.page else 1) }}">
+                                
+                                {{ note_form.csrf_token }}  {# Explicitly render CSRF token from the form object passed by the route #}
+                                <input type="hidden" name="coaching_id" value="{{ coaching.id }}"> {# Manually provide the coaching_id #}
 
-                <div class="modal-header telekom-bg-magenta text-white">
-                    <h5 class="modal-title" id="noteModalLabel-{{ coaching.id }}">Notiz für Coaching #{{ coaching.id }}</h5>
-                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">×</span>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <p><strong>Teammitglied:</strong> {{ coaching.team_member_coached.name if coaching.team_member_coached else 'N/A' }}<br>
-                       <strong>Coach:</strong> {{ coaching.coach.username if coaching.coach else 'N/A' }}<br>
-                       <strong>Datum:</strong> {{ coaching.coaching_date.strftime('%d.%m.%Y %H:%M') }}</p>
-                    <div class="form-group">
-                        {# Render the notes field from the form object #}
-                        {{ note_form.notes.label(class="form-control-label") }}
-                        {# Pre-fill with existing notes if available, otherwise, it will be empty #}
-                        {{ note_form.notes(class="form-control", rows=5, value=(coaching.project_leader_notes if coaching.project_leader_notes else "")) }}
-                        {# Display validation errors for the 'notes' field if any (requires passing the validated form back on error) #}
-                        {% if note_form.notes.errors %} 
-                            <div class="invalid-feedback d-block">
-                                {% for error in note_form.notes.errors %}<span>{{ error }}</span><br>{% endfor %}
-                            </div>
-                        {% endif %}
+                                <div class="modal-header telekom-bg-magenta text-white">
+                                    <h5 class="modal-title" id="noteModalLabel-{{ coaching.id }}">Notiz für Coaching #{{ coaching.id }}</h5>
+                                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                                        <span aria-hidden="true">×</span>
+                                    </button>
+                                </div>
+                                <div class="modal-body">
+                                    <p><strong>Teammitglied:</strong> {{ coaching.team_member_coached.name if coaching.team_member_coached else 'N/A' }}<br>
+                                       <strong>Coach:</strong> {{ coaching.coach.username if coaching.coach else 'N/A' }}<br>
+                                       <strong>Datum:</strong> {{ coaching.coaching_date.strftime('%d.%m.%Y %H:%M') }}</p>
+                                    <div class="form-group">
+                                        {{ note_form.notes.label(class="form-control-label") }}
+                                        {# Pre-fill with existing notes, or it will be empty. WTForms handles repopulating on validation error if form_to_validate is passed back. #}
+                                        {{ note_form.notes(class="form-control", rows=5, value=(coaching.project_leader_notes if coaching.project_leader_notes else "")) }}
+                                        {% if note_form.errors.notes %} {# Display errors if the main page re-renders with errors in note_form #}
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in note_form.errors.notes %}<span>{{ error }}</span><br>{% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Abbrechen</button>
+                                    <input type="submit" name="submit_note" class="btn telekom-button" value="Notiz speichern">
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Abbrechen</button>
-                    {# Ensure this submit button has name="submit_note" to be caught by the route #}
-                    <input type="submit" name="submit_note" class="btn telekom-button" value="Notiz speichern">
-                </div>
-            </form>
-        </div>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
-</div>
-    <!-- Paginierung (kopiert von index.html, ggf. anpassen) -->
-    <nav aria-label="Coaching Navigation">
+    <!-- Paginierung -->
+    <nav aria-label="Coaching Navigation" class="mt-4">
          <ul class="pagination justify-content-center">
             {% if coachings_paginated.has_prev %}
                 <li class="page-item"><a class="page-link telekom-page-link" href="{{ url_for('main.projektleiter_dashboard', page=coachings_paginated.prev_num) }}">Vorherige</a></li>
