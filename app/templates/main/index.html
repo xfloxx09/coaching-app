@@ -259,29 +259,48 @@
        // 1. Ø Performance / Team (%)
         drawChartWithMessage(chartAvgPerformanceCtx, {
             type: 'bar',
-            data: { labels: chartLabels, datasets: [{ data: chartAvgPerformanceData, backgroundColor: telekomMagenta, borderColor: telekomMagentaBorder, borderWidth: 1 }] },
+            data: { 
+                labels: chartLabels, 
+                datasets: [{ 
+                    label: ' ', // <--- EINZELNES LEERZEICHEN
+                    data: chartAvgPerformanceData, 
+                    backgroundColor: telekomMagenta, 
+                    borderColor: telekomMagentaBorder, 
+                    borderWidth: 1 
+                }] 
+            },
             options: { 
-                ...commonChartOptions, 
+                ...commonChartOptions, // Stellt sicher, dass legend: { display: false } hier greift
                 scales: { 
                     ...commonChartOptions.scales, 
                     y: { 
                         ...commonChartOptions.scales.y, 
-                        min: 0, // Explizit bei 0 beginnen
-                        max: 100, // Max bei 100 lassen
-                        // suggestedMax: 105, // Alternative, um Puffer zu geben, falls 100 nicht gut aussieht
+                        min: 0,
+                        max: 100,
                         ticks: { 
                             ...commonChartOptions.scales.y.ticks, 
-                            stepSize: 10, // Feste Schrittgröße von 10%
+                            stepSize: 10,
                             callback: function(value) {return value + "%"} 
                         } 
                     } 
                 }, 
                 plugins: { 
-                    // ... (Rest der Plugins wie datalabels und annotation) ...
-                    datalabels: {...commonChartOptions.plugins.datalabels, formatter: (value) => Math.round(value) + '%'}, 
-                    annotation: { annotations: { 
-                        line1: { type: 'line', yMin: 80, yMax: 80, borderColor: telekomDarkGreen, borderWidth: 2, borderDash: [6, 6], label: { enabled: false } } 
-                    } } 
+                    // commonChartOptions.plugins enthält legend: {display: false}
+                    // und eine Standard-datalabels-Konfiguration.
+                    // Wir überschreiben/ergänzen hier nur spezifische Teile.
+                    datalabels: {
+                        ...commonChartOptions.plugins.datalabels, // Übernehme Standardeinstellungen
+                        formatter: (value) => Math.round(value) + '%' // Spezifischer Formatter
+                    }, 
+                    annotation: { 
+                        annotations: { 
+                            line1: { 
+                                type: 'line', yMin: 80, yMax: 80, 
+                                borderColor: telekomDarkGreen, borderWidth: 2, borderDash: [6, 6], 
+                                label: { enabled: false } 
+                            } 
+                        } 
+                    } 
                 } 
             }
         });
