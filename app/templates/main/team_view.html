@@ -92,20 +92,22 @@
                 <tr class="collapse" id="coachingDetailsTeam{{ coaching.id }}">
                     <td colspan="6"> {# Colspan auf die neue Anzahl Spalten angepasst #}
                         <div class="card card-body">
-                            <strong>Stil:</strong> {{ coaching.coaching_style }} {% if coaching.tcap_id %}(T-CAP ID: {{ coaching.tcap_id }}){% endif %}<br>
-                            <strong>Betreff:</strong> {{ coaching.coaching_subject if coaching.coaching_subject else '-' }}<br> {# NEU #}
-                            <strong>Note:</strong> {{ coaching.performance_mark if coaching.performance_mark is not none else '-' }}/10 | <strong>Zeit:</strong> {{ coaching.time_spent if coaching.time_spent is not none else '-' }} Min.<br>
-                            <strong>Leitfaden:</strong>
-                            B:{{ coaching.leitfaden_begruessung }} |
-                            L:{{ coaching.leitfaden_legitimation }} |
-                            P:{{ coaching.leitfaden_pka }} |
-                            K:{{ coaching.leitfaden_kek }} |
-                            A:{{ coaching.leitfaden_angebot }} |
-                            Z:{{ coaching.leitfaden_zusammenfassung }} |
-                            KZB:{{ coaching.leitfaden_kzb }} <br>
+                            <strong>Stil:</strong> {{ coaching.coaching_style if coaching.coaching_style else '-'}} 
+                            {% if coaching.coaching_style == 'TCAP' and coaching.tcap_id %}
+                                (T-CAP ID: {{ coaching.tcap_id }})
+                            {% endif %}<br>
+                            <strong>Betreff:</strong> {{ coaching.coaching_subject if coaching.coaching_subject else '-' }}<br>
+                            
+                            <hr> {# Trenner vor Leitfaden #}
+                            <strong>Leitfaden-Checkmarks:</strong><br>
+                            <ul class="list-unstyled ml-3"> {# Ungeordnete Liste für bessere Darstellung #}
+                            {% for name, value in coaching.leitfaden_fields_list %}
+                                <li>{{ name }}: <strong>{{ value }}</strong></li>
+                            {% endfor %}
+                            </ul>
                             <strong>Leitfaden Erfüllung:</strong> {{ coaching.leitfaden_erfuellung_display }}
                             
-                            {% if coaching.coach_notes %} {# NEU #}
+                            {% if coaching.coach_notes %}
                             <hr>
                             <strong>Notizen des Coaches:</strong><br>
                             <p style="white-space: pre-wrap;">{{ coaching.coach_notes }}</p>
@@ -113,7 +115,7 @@
 
                             {% if coaching.project_leader_notes %}
                             <hr>
-                            <strong>Notiz Projektleiter:</strong><br>
+                            <strong>PL/QM Notiz:</strong><br>
                             <p style="white-space: pre-wrap;">{{ coaching.project_leader_notes }}</p>
                             {% endif %}
                         </div>
