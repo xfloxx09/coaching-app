@@ -271,29 +271,53 @@
         // 1. Ø Performance / Team (%)
         drawChartWithMessage(chartAvgPerformanceCtx, { 
             type: 'bar', 
-            data: { labels: chartLabels, datasets: [{ 
-                label: ' ', // Dataset-Label auf Leerzeichen gesetzt
-                data: chartAvgPerformanceData, 
-                backgroundColor: telekomMagenta, 
-                borderColor: telekomMagentaBorder, 
-                borderWidth: 1 
-            }] }, 
+            data: { 
+                labels: chartLabels, 
+                datasets: [{ 
+                    label: ' ', 
+                    data: chartAvgPerformanceData, 
+                    backgroundColor: telekomMagenta, 
+                    borderColor: telekomMagentaBorder, 
+                    borderWidth: 1 
+                }] 
+            }, 
             options: { 
-                ...commonChartOptions, 
-                scales: { ...commonChartOptions.scales, y: { ...commonChartOptions.scales.y, min:0, max: 105, ticks: { ...commonChartOptions.scales.y.ticks, stepSize: 10, callback: function(value) {
-    if (value <= 100) { 
-        return value + "%";
-    }
-    return ''; // Gibt einen leeren String für Ticks > 100 zurück
-}, 
+                ...commonChartOptions, // Übernimmt responsive, maintainAspectRatio, Standard x-Skala, Standard y-Skala (beginAtZero, precision 0), Standard plugins (legend:false, datalabels)
+                scales: { 
+                    // x-Skala wird von commonChartOptions übernommen
+                    y: { 
+                        ...commonChartOptions.scales.y, // Übernehme Basis y-Skalen-Optionen
+                        min: 0,
+                        max: 105, // Leicht über 100, damit 100% Tick sichtbar ist
+                        ticks: { 
+                            ...commonChartOptions.scales.y.ticks, // Übernehme Basis y-Ticks-Optionen
+                            stepSize: 10, 
+                            callback: function(value) {
+                                if (value <= 100) { 
+                                    return value + "%";
+                                }
+                                return ''; // Keine Beschriftung für Ticks > 100
+                            } 
+                        } // Ende y.ticks
+                    } // Ende y-Skala
+                }, // Ende scales
                 plugins: { 
-                    ...commonChartOptions.plugins, 
-                    datalabels: {...commonChartOptions.plugins.datalabels, formatter: (value) => Math.round(value) + '%'}, 
-                    annotation: { annotations: { 
-                        line1: { type: 'line', yMin: 80, yMax: 80, borderColor: telekomDarkGreen, borderWidth: 2, borderDash: [6, 6], label: { enabled: false } } 
-                    } } 
-                } 
-            }
+                    ...commonChartOptions.plugins, // Übernehme Standard-Plugin-Optionen (legend:false, datalabels)
+                    datalabels: { // Überschreibe/ergänze datalabels
+                        ...commonChartOptions.plugins.datalabels, 
+                        formatter: (value) => Math.round(value) + '%'
+                    }, 
+                    annotation: { 
+                        annotations: { 
+                            line1: { 
+                                type: 'line', yMin: 80, yMax: 80, 
+                                borderColor: telekomDarkGreen, borderWidth: 2, borderDash: [6, 6], 
+                                label: { enabled: false } 
+                            } 
+                        } 
+                    } 
+                } // Ende plugins
+            } // Ende options
         });
         
         // 2. Ø Coaching-Dauer / Team (Min.)
