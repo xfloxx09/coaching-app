@@ -1,10 +1,62 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>{{ title }}</h2>
-<p>Hier können Sie Notizen zu bestehenden Coachings hinzufügen.</p>
+    <h2>{{ title }}</h2>
 
-{% if coachings_paginated and coachings_paginated.items %}
+    {# Top/Flop Teams Anzeige #}
+    <div class="row mb-4">
+        <div class="col-md-6 mb-3">
+            <div class="card h-100">
+                <div class="card-header telekom-bg-magenta text-white">Top 3 Teams (nach Ø Score & Coachings)</div>
+                {% if top_3_teams %}
+                <ul class="list-group list-group-flush">
+                    {% for team_data in top_3_teams %}
+                        <li class="list-group-item" style="background-color: #2b2b2b; color: #f0f0f0; border-color: #444;">
+                            <strong>{{ loop.index }}. {{ team_data.name }}</strong><br> 
+                            <small>
+                                Ø Score: {{ team_data.avg_score }}% | 
+                                Coachings: {{ team_data.num_coachings }} | 
+                                Gesamtzeit: {{ team_data.total_time }} Min.
+                            </small>
+                        </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                    <div class="card-body">
+                        <p class="text-muted" style="color: #f0f0f0!important;">Keine Daten für Top-Teams verfügbar.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="col-md-6 mb-3">
+            <div class="card h-100">
+                <div class="card-header telekom-bg-magenta text-white">Niedrigste 3 Teams (nach Ø Score & Coachings, mit Coachings)</div>
+                 {% if flop_3_teams %}
+                 <ul class="list-group list-group-flush">
+                    {% for team_data in flop_3_teams %}
+                        <li class="list-group-item" style="background-color: #2b2b2b; color: #f0f0f0; border-color: #444;">
+                            <strong>{{ loop.index }}. {{ team_data.name }}</strong><br>
+                            <small>
+                                Ø Score: {{ team_data.avg_score }}% | 
+                                Coachings: {{ team_data.num_coachings }} | 
+                                Gesamtzeit: {{ team_data.total_time }} Min.
+                            </small>
+                        </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                    <div class="card-body">
+                         <p class="text-muted" style="color: #f0f0f0!important;">Keine Daten für Flop-Teams verfügbar oder keine Teams mit Coachings.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <hr>
+
+    <p>Hier können Sie Notizen zu bestehenden Coachings hinzufügen.</p>
+    
+    {% if coachings_paginated and coachings_paginated.items %}
     <div class="table-responsive">
         <table class="table table-striped table-hover">
             <thead class="telekom-bg-magenta text-white">
@@ -38,15 +90,8 @@
                     <div class="modal-dialog" role="document">
                         <div class="modal-content">
                             <form method="POST" action="{{ url_for('main.projektleiter_dashboard', page=coachings_paginated.page if coachings_paginated and coachings_paginated.page else 1) }}">
-                                
-                                {# CSRF-Token wird durch note_form.hidden_tag() oder explizit note_form.csrf_token gerendert #}
-                                {# Da ProjectLeaderNoteForm jetzt keine anderen HiddenFields mehr hat (coaching_id ist weg), #}
-                                {# können wir hidden_tag() verwenden, es rendert dann nur CSRF. #}
-                                {{ note_form.hidden_tag() }} 
-                                
-                                {# Manuelles Hidden Field für coaching_id, da es nicht mehr Teil der Formular-Klasse ist #}
+                                {{ note_form.csrf_token }}
                                 <input type="hidden" name="coaching_id" value="{{ coaching.id }}">
-
                                 <div class="modal-header telekom-bg-magenta text-white">
                                     <h5 class="modal-title" id="noteModalLabel-{{ coaching.id }}">Notiz für Coaching #{{ coaching.id }}</h5>
                                     <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
@@ -59,10 +104,10 @@
                                        <strong>Datum:</strong> {{ coaching.coaching_date.strftime('%d.%m.%Y %H:%M') }}</p>
                                     <div class="form-group">
                                         {{ note_form.notes.label(class="form-control-label") }}
-                                        {{ note_form.notes(class="form-control " + ( "is-invalid" if note_form.notes.errors else "" ), rows=5, value=(coaching.project_leader_notes if coaching.project_leader_notes else "")) }}
-                                        {% if note_form.notes.errors %} 
+                                        {{ note_form.notes(class="form-control", rows=5, value=(coaching.project_leader_notes if coaching.project_leader_notes else "")) }}
+                                        {% if note_form.errors.notes %}
                                             <div class="invalid-feedback d-block">
-                                                {% for error in note_form.notes.errors %}<span>{{ error }}</span><br>{% endfor %}
+                                                {% for error in note_form.errors.notes %}<span>{{ error }}</span><br>{% endfor %}
                                             </div>
                                         {% endif %}
                                     </div>
@@ -79,7 +124,6 @@
             </tbody>
         </table>
     </div>
-    <!-- Paginierung -->
     <nav aria-label="Coaching Navigation" class="mt-4">
          <ul class="pagination justify-content-center">
             {% if coachings_paginated.has_prev %}
