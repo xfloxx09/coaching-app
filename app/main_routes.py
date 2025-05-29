@@ -202,19 +202,66 @@ def add_coaching():
 @role_required(ROLE_PROJEKTLEITER)
 def projektleiter_dashboard():
     page = request.args.get('page', 1, type=int)
-    # Nur Coachings anzeigen, denen noch keine PL-Notiz hinzugefügt wurde oder alle?
-    # Hier erstmal alle:
-    coachings_paginated = Coaching.query.order_by(desc(Coaching.coaching_date)).paginate(page=page, per_page=10, error_out=False)
+    coachings_query = Coaching.query.order_by(desc(Coaching.coaching_date))
+    coachings_paginated = coachings_query.paginate(page=page, per_page=10, error_out=False)
     
-    note_form = ProjectLeaderNoteForm()
+    # Diese note_form wird für die Anzeige der leeren Formulare in den Modals verwendet.
+    # Es ist wichtig, dass sie keine Daten vom vorherigen Request enthält, falls ein Fehler auftrat.
+    note_form_display = ProjectLeaderNoteForm() 
 
-    if note_form.validate_on_submit() and 'submit_note' in request.form :
-        coaching_id = note_form.coaching_id.data
-        coaching_to_update = Coaching.query.get_or_404(coaching_id)
-        coaching_to_update.project_leader_notes = note_form.notes.data
-        db.session.commit()
-        flash(f'Notiz für Coaching ID {coaching_id} gespeichert.', 'success')
-        return redirect(url_for('main.projektleiter_dashboard', page=page))
+    if request.method == 'POST':
+        # Prüfen, ob der richtige Submit-Button geklickt wurde (aus dem Modal)
+        # Der Name des Submit-Buttons im HTML ist <input type="submit" name="submit_note" ...>
+        if 'submit_note' in request.form:
+            print("DEBUG PL_DASH: POST-Request für 'submit_note' erhalten.") # DEBUG
+            print(f"DEBUG PL_DASH: request.form enthält: {request.form}") # DEBUG
 
-    return render_template('main/projektleiter_dashboard.html', title='Projektleiter Dashboard',
-                           coachings_paginated=coachings_paginated, note_form=note_form)
+            # Erstelle eine neue Formularinstanz speziell für die Validierung mit den POST-Daten
+            form_to_validate = ProjectLeaderNoteForm(request.form) 
+
+            if form_to_validate.validate(): # validate() ist hier besser als validate_on_submit(), da wir nicht WTForms' CSRF für diese spezifische Instanz nutzen
+                coaching_id_from_form = form_to_validate.coaching_id.data
+                notes_data = form_to_validate.notes.data
+                
+                print(f"DEBUG PL_DASH: Validierung erfolgreich. Coaching ID: {coaching_id_from_form}, Notes (Auszug): {notes_data[:50]}...") # DEBUG
+                
+                coaching_to_update = Coaching.query.get_or_404(coaching_id_from_form)
+                coaching_to_update.project_leader_notes = notes_data
+                try:
+                    db.session.commit()
+                    flash(f'Notiz für Coaching ID {coaching_id_from_form} erfolgreich gespeichert.', 'success')
+                    print(f"DEBUG PL_DASH: Notiz für Coaching {coaching_id_from_form} commited.") # DEBUG
+                except Exception as e:
+                    db.session.rollback()
+                    flash(f'Fehler beim Speichern der Notiz in der Datenbank: {str(e)}', 'danger')
+                    print(f"FEHLER DB Commit PL Notiz: {e}") # DEBUG
+                    import traceback
+                    traceback.print_exc()
+                
+                # Nach erfolgreichem Speichern oder Fehler beim Speichern, immer zur Seite zurückleiten
+                return redirect(url_for('main.projektleiter_dashboard', page=request.args.get('page', 1, type=int))) # Behalte die aktuelle Seite bei
+            
+            else: # Formularvalidierung fehlgeschlagen
+                flash('Fehler in der Notizeingabe. Bitte überprüfen Sie Ihre Eingaben.', 'danger')
+                print("DEBUG PL_DASH: Formularvalidierung für Notiz fehlgeschlagen.") # DEBUG
+                for fieldName, errorMessages in form_to_validate.errors.items():
+                    for err in errorMessages:
+                        # Versuche, den Label-Text zu bekommen, falls das Feld im Hauptformular existiert
+                        label_text = fieldName
+                        try:
+                            label_text = form_to_validate[fieldName].label.text
+                        except:
+                            pass
+                        print(f"DEBUG PL_DASH: Fehler im Feld '{label_text}': {err}") # DEBUG
+                        flash(f"Validierungsfehler im Feld '{label_text}': {err}", 'danger')
+                # Bei Validierungsfehler auf derselben Seite bleiben, damit die Flash-Nachrichten sichtbar sind.
+                # Das Modal wird nicht automatisch wieder geöffnet, das erfordert JS oder eine andere Logik.
+                # Fürs Erste leiten wir um, damit die Seite neu lädt und die Flash-Nachrichten anzeigt.
+                return redirect(url_for('main.projektleiter_dashboard', page=page))
+
+    return render_template(
+        'main/projektleiter_dashboard.html', 
+        title='Projektleiter Dashboard',
+        coachings_paginated=coachings_paginated, 
+        note_form=note_form_display # Übergebe die "saubere" Formularinstanz an die Modals
+    )
