@@ -78,7 +78,7 @@
             <tbody>
                 {% for coaching in team_coachings %}
                 <tr>
-                    <td>{{ coaching.coaching_date.strftime('%d.%m.%y %H:%M') }}</td>
+                    <td>{{ coaching.coaching_date|athens_time }}</td>
                     <td>{{ coaching.team_member_coached.name }}</td>
                     <td>{{ coaching.coach.username }}</td>
                     <td>{{ coaching.coaching_subject if coaching.coaching_subject else '-' }}</td> {# NEU #}
