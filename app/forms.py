@@ -83,14 +83,13 @@ COACHING_SUBJECT_CHOICES = [
 class CoachingForm(FlaskForm):
     team_member_id = SelectField(
         'Teammitglied', 
-        # coerce wird dynamisch im __init__ gesetzt
+        coerce=int, # Wir lassen coerce=int hier, da wir Integer-IDs erwarten
         validators=[DataRequired("Teammitglied ist erforderlich.")], 
         option_widget=None
+        # choices werden im __init__ dynamisch gesetzt
     )
-    coaching_style = SelectField('Coaching Stil', choices=[
-        ('Side-by-Side', 'Side-by-Side'),
-        ('TCAP', 'TCAP')
-    ], validators=[DataRequired("Coaching-Stil ist erforderlich.")])
+    # ... (Rest der Felder wie coaching_style, coaching_subject etc. bleiben gleich) ...
+    coaching_style = SelectField('Coaching Stil', choices=[('Side-by-Side', 'Side-by-Side'), ('TCAP', 'TCAP')], validators=[DataRequired("Coaching-Stil ist erforderlich.")])
     tcap_id = StringField('T-CAP ID (falls TCAP gewählt)')
     coaching_subject = SelectField('Coaching Betreff', choices=COACHING_SUBJECT_CHOICES, validators=[DataRequired("Betreff ist erforderlich.")])
     leitfaden_begruessung = SelectField('Begrüßung', choices=LEITFADEN_CHOICES, default='k.A.')
@@ -113,28 +112,41 @@ class CoachingForm(FlaskForm):
         if current_user_role == 'Teamleiter' and current_user_team_id:
             team_members = TeamMember.query.filter_by(team_id=current_user_team_id).order_by(TeamMember.name).all()
             for m in team_members:
-                generated_choices.append((m.id, m.name))
+                generated_choices.append((m.id, m.name)) # Wert ist m.id (Integer)
         else: 
             all_teams = Team.query.order_by(Team.name).all()
             for team_obj in all_teams:
                 members = TeamMember.query.filter_by(team_id=team_obj.id).order_by(TeamMember.name).all()
                 for m in members:
-                    generated_choices.append((m.id, f"{m.name} ({team_obj.name})"))
+                    generated_choices.append((m.id, f"{m.name} ({team_obj.name})")) # Wert ist m.id (Integer)
         
-        has_data_required = any(isinstance(v, DataRequired) for v in self.team_member_id.validators)
-
+        # Setze die Choices für das Feld
+        # Wichtig: Wenn generated_choices leer ist, wird DataRequired später bei der Validierung fehlschlagen,
+        # was korrekt ist. Wir fügen KEINE Platzhalter-Optionen mit leerem String als Wert hinzu,
+        # wenn coerce=int ist, da dies den ValueError beim Rendern verursacht.
         if not generated_choices:
-            self.team_member_id.choices = [("", "Keine Mitglieder verfügbar")]
-            self.team_member_id.coerce = str # Wichtig, um ValueError beim Rendern zu vermeiden
+            # Wenn keine Mitglieder da sind, bleibt die Choice-Liste leer.
+            # Das Template muss ggf. darauf reagieren oder eine Meldung anzeigen.
+            # WTForms wird das leere Select-Feld rendern.
+            self.team_member_id.choices = [] 
+            print(f"DEBUG CoachingForm Init: Keine Mitglieder gefunden, Choices sind leer.")
         else:
-            self.team_member_id.coerce = int # Standard coerce für gültige IDs
-            if has_data_required:
-                 # Füge "Bitte wählen" nur hinzu, wenn es tatsächliche Optionen gibt
-                 self.team_member_id.choices = [("", "--- Bitte wählen ---")] + generated_choices
-            else:
-                 self.team_member_id.choices = generated_choices
-        
-        print(f"DEBUG CoachingForm Init Final Choices: {self.team_member_id.choices[:5]}, Coerce: {self.team_member_id.coerce}")
+            # Wenn Mitglieder vorhanden sind, füge eine "Bitte wählen"-Option hinzu,
+            # aber mit einem nicht-numerischen oder ungültigen Wert, der coerce=int nicht stört,
+            # und den DataRequired-Validator fehlschlagen lässt, wenn er ausgewählt bleibt.
+            # Besser ist, das Feld initial leer zu lassen, wenn möglich, und auf die Validierung zu vertrauen.
+            # Für die Auswahl:
+            # Die "Bitte wählen"-Option sollte idealerweise einen Wert haben, der nicht mit echten IDs kollidiert
+            # und vom coerce-Typ nicht erfasst wird, wenn er nicht None ist.
+            # Da wir coerce=int haben, DARF der Wert für "Bitte wählen" KEIN leerer String sein.
+            # Wir lassen "Bitte wählen" hier weg und verlassen uns auf DataRequired.
+            # Wenn du eine "Bitte wählen"-Option visuell möchtest, die nicht validiert,
+            # müsste sie einen nicht-Integer-Wert haben und das Feld dürfte nicht DataRequired sein,
+            # oder die Validierung müsste komplexer werden.
+
+            # Einfachste Lösung: Nur die gültigen Choices setzen.
+            self.team_member_id.choices = generated_choices
+            print(f"DEBUG CoachingForm Init Final Choices: {self.team_member_id.choices[:5]}")
 
 
 class ProjectLeaderNoteForm(FlaskForm):
