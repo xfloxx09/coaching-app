@@ -79,9 +79,8 @@
                         <th>Teammitglied</th>
                         <th>Team</th>
                         <th>Coach</th>
-                        <th>Betreff</th>
+                        <th>Thema</th>
                         <th>Stil</th>
-                        <th>T-CAP ID</th>
                         <th>Note (0-10)</th>
                         <th>Zeit (Min)</th>
                         <th>Score (%)</th>
@@ -98,7 +97,6 @@
                         <td>{{ coaching.coach.username if coaching.coach else 'N/A' }}</td>
                         <td>{{ coaching.coaching_subject if coaching.coaching_subject else '-' }}</td>
                         <td>{{ coaching.coaching_style if coaching.coaching_style else '-' }}</td>
-                        <td>{{ coaching.tcap_id if coaching.tcap_id else '-' }}</td>
                         <td>{{ coaching.performance_mark if coaching.performance_mark is not none else '-'}}</td>
                         <td>{{ coaching.time_spent if coaching.time_spent is not none else '-' }}</td>
                         <td>
@@ -122,8 +120,13 @@
                         </td>
                     </tr>
                     <tr class="collapse" id="coachingDetails{{ coaching.id }}">
-                        <td colspan="12"> 
+                        <td colspan="11"> 
                             <div class="card card-body">
+                            <strong>Stil:</strong> {{ coaching.coaching_style if coaching.coaching_style else '-'}} 
+                            {% if coaching.coaching_style == 'TCAP' and coaching.tcap_id %} {# Zeige T-CAP ID nur, wenn Stil TCAP ist und ID existiert #}
+                                (T-CAP ID: {{ coaching.tcap_id }})
+                            {% endif %}<br>
+                            <strong>Betreff:</strong> {{ coaching.coaching_subject if coaching.coaching_subject else '-' }}<br>
                                 <strong>Stil:</strong> {{ coaching.coaching_style if coaching.coaching_style else '-'}} {% if coaching.tcap_id %}(T-CAP ID: {{ coaching.tcap_id }}){% endif %}<br>
                                 <strong>Betreff:</strong> {{ coaching.coaching_subject if coaching.coaching_subject else '-' }}<br>
                                 <strong>Leitfaden:</strong><br>
