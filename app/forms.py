@@ -89,7 +89,15 @@ COACHING_SUBJECT_CHOICES = [
 ]
 
 class CoachingForm(FlaskForm):
-    team_member_id = SelectField('Teammitglied', coerce=int, validators=[DataRequired("Teammitglied ist erforderlich.")], option_widget=None)
+    # coerce=int bleibt, da die IDs der Mitglieder Integer sind.
+    team_member_id = SelectField(
+        'Teammitglied', 
+        coerce=int, 
+        validators=[DataRequired("Teammitglied ist erforderlich.")], 
+        option_widget=None, 
+        # choices werden im __init__ dynamisch gesetzt
+    )
+    # ... (Rest der Felder wie coaching_style, coaching_subject etc. bleiben gleich) ...
     coaching_style = SelectField('Coaching Stil', choices=[
         ('Side-by-Side', 'Side-by-Side'),
         ('TCAP', 'TCAP')
@@ -108,22 +116,19 @@ class CoachingForm(FlaskForm):
     coach_notes = TextAreaField('Notizen des Coaches', validators=[Length(max=2000)])
     submit = SubmitField('Coaching speichern')
 
+
     def __init__(self, current_user_role=None, current_user_team_id=None, *args, **kwargs):
         super(CoachingForm, self).__init__(*args, **kwargs)
         
-        choices_list = []
-        # Standard "Bitte wählen"-Option, wenn das Feld Pflicht ist und leer sein könnte
-        # Diese wird entfernt, wenn gültige Optionen geladen werden.
-        has_data_required = any(isinstance(v, DataRequired) for v in self.team_member_id.validators)
+        generated_choices = [] # Liste für (value, label) Tupel
 
         if current_user_role == 'Teamleiter' and current_user_team_id:
             team_members = TeamMember.query.filter_by(team_id=current_user_team_id).order_by(TeamMember.name).all()
             if team_members:
                 for m in team_members:
-                    choices_list.append((m.id, m.name))
-            # Wenn keine Mitglieder im Team, aber Feld ist Pflicht, braucht es einen Platzhalter, der Validierung fehlschlagen lässt
-            elif has_data_required: 
-                choices_list.append(("", "Keine Mitglieder in Ihrem Team zugewiesen"))
+                    generated_choices.append((m.id, m.name))
+            # Wenn keine Mitglieder, bleibt generated_choices leer
+        
         else: # Für Nicht-Teamleiter (QM, SalesCoach, Trainer, Admin)
             all_teams = Team.query.order_by(Team.name).all()
             if all_teams:
@@ -131,20 +136,29 @@ class CoachingForm(FlaskForm):
                     members = TeamMember.query.filter_by(team_id=team_obj.id).order_by(TeamMember.name).all()
                     if members:
                         for m in members:
-                            choices_list.append((m.id, f"{m.name} ({team_obj.name})"))
-            
-            if not choices_list and has_data_required: # Wenn nach allem keine Mitglieder da sind
-                 choices_list.append(("", "Keine Teammitglieder im System gefunden"))
-
+                            generated_choices.append((m.id, f"{m.name} ({team_obj.name})"))
+            # Wenn keine Teams oder keine Mitglieder, bleibt generated_choices leer
+        
         # Setze die Choices für das Feld
-        if not choices_list:
+        if not generated_choices:
+            # Wenn keine validen Mitglieder gefunden wurden, ist es schwierig, DataRequired zu erfüllen.
+            # Eine Option ist, eine nicht-wählbare "Keine Mitglieder"-Option anzubieten,
+            # aber das löst das DataRequired-Problem nicht, wenn es die einzige Option ist.
+            # Besser ist es, das Formular gar nicht erst zu validieren, wenn keine Auswahl möglich ist,
+            # oder eine entsprechende Meldung anzuzeigen.
+            # Für den Moment setzen wir eine leere Choice, die DataRequired fehlschlagen lässt.
             self.team_member_id.choices = [("", "Keine auswählbaren Mitglieder")]
+            # Und vielleicht eine Meldung in der Route flashen, dass keine Mitglieder da sind.
         else:
-            # Füge "Bitte wählen" hinzu, wenn es noch nicht da ist und das Feld nicht leer sein darf und es gültige Optionen gibt
-            is_first_choice_placeholder = choices_list and choices_list[0][0] == ""
-            if has_data_required and not is_first_choice_placeholder and any(c[0] != "" for c in choices_list):
-                 choices_list.insert(0, ("", "--- Bitte wählen ---"))
-            self.team_member_id.choices = choices_list
+            # Füge eine "Bitte wählen"-Option hinzu, WENN das Feld Pflicht ist (DataRequired)
+            # UND wenn die Liste nicht leer ist UND die erste Option nicht schon ein Platzhalter ist.
+            has_data_required = any(isinstance(v, DataRequired) for v in self.team_member_id.validators)
+            if has_data_required and (not generated_choices or generated_choices[0][0] != ""):
+                 self.team_member_id.choices = [("", "--- Bitte wählen ---")] + generated_choices
+            else:
+                 self.team_member_id.choices = generated_choices
+        
+        print(f"DEBUG CoachingForm Init Final Choices: {self.team_member_id.choices[:5]}") # DEBUG
 
 
 class ProjectLeaderNoteForm(FlaskForm):
