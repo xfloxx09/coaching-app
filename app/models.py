@@ -1,5 +1,5 @@
 # app/models.py
-print("<<<< START models.py (Version: Coaching mit Notizen/Betreff) GELADEN >>>>")
+print("<<<< START models.py (KORRIGIERTE VERSION) GELADEN >>>>")
 
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -10,7 +10,7 @@ class User(UserMixin, db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), index=True, unique=True, nullable=False)
-    email = db.Column(db.String(120), index=True, unique=False, nullable=True) # E-Mail optional/nicht-unique
+    email = db.Column(db.String(120), index=True, unique=False, nullable=True)
     password_hash = db.Column(db.String(256), nullable=True)
     role = db.Column(db.String(20), nullable=False, default='Teammitglied')
     team_id_if_leader = db.Column(db.Integer, db.ForeignKey('teams.id', name='fk_user_team_id_if_leader'), nullable=True) 
@@ -76,7 +76,7 @@ class Coaching(db.Model):
     project_leader_notes = db.Column(db.Text, nullable=True)
     
     @property
-    def leitfaden_erfuellung_display(self): # Umbenannt für Klarheit, gibt "X/Y" oder "N/A" zurück
+    def leitfaden_erfuellung_display(self): 
         leitfaden_fields = [
             self.leitfaden_begruessung, self.leitfaden_legitimation, self.leitfaden_pka,
             self.leitfaden_kek, self.leitfaden_angebot, self.leitfaden_zusammenfassung, self.leitfaden_kzb
@@ -89,31 +89,16 @@ class Coaching(db.Model):
         return f"{ja_count}/{total_relevant_fields}"
 
     @property
-    def overall_score(self): # Berechnet den Score jetzt NUR basierend auf performance_mark
+    def overall_score(self): # KORRIGIERTE VERSION - NUR EINE DEFINITION
         if self.performance_mark is None:
-            return 0.0 # Oder einen anderen Standardwert, wenn keine Note gegeben wurde
-        
-        # performance_mark ist 0-10, umgerechnet auf 0-100%
+            return 0.0 
         performance_percentage = (float(self.performance_mark) / 10.0) * 100.0
         return round(performance_percentage, 2)
 
-    # Die Property leitfaden_score_percentage wird nicht mehr für overall_score benötigt
-    # und kann entfernt werden, wenn sie nirgendwo anders verwendet wird.
-    # @property
-    # def leitfaden_score_percentage(self): 
-    #     # ... (alte Logik) ...
+    # Die zweite, fehlerhafte overall_score Definition wurde ENTFERNT.
+    # Die leitfaden_score_details Property wurde bereits zu leitfaden_erfuellung_display umbenannt.
 
     def __repr__(self):
         return f'<Coaching {self.id} for TeamMember {self.team_member_id} on {self.coaching_date}>'
 
-    @property
-    def overall_score(self):
-        leitfaden_percentage = self.leitfaden_score_details
-        performance_percentage = (self.performance_mark / 10) * 100 if self.performance_mark is not None else 0
-        score = (performance_percentage * 0.8) + (leitfaden_percentage * 0.2)
-        return round(score, 2)
-
-    def __repr__(self):
-        return f'<Coaching {self.id} for TeamMember {self.team_member_id} on {self.coaching_date}>'
-
-print("<<<< ENDE models.py (Version: Coaching mit Notizen/Betreff) GELADEN >>>>")
+print("<<<< ENDE models.py (KORRIGIERTE VERSION) GELADEN >>>>")
