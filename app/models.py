@@ -60,8 +60,6 @@ class Coaching(db.Model):
     coaching_date = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     coaching_style = db.Column(db.String(50), nullable=True)
     tcap_id = db.Column(db.String(50), nullable=True)
-    
-    # NEUE FELDER HINZUGEFÜGT
     coaching_subject = db.Column(db.String(50), nullable=True) 
     coach_notes = db.Column(db.Text, nullable=True)
     
@@ -78,22 +76,35 @@ class Coaching(db.Model):
     project_leader_notes = db.Column(db.Text, nullable=True)
     
     @property
-    def leitfaden_score_details(self):
+    def leitfaden_erfuellung_display(self): # Umbenannt für Klarheit, gibt "X/Y" oder "N/A" zurück
         leitfaden_fields = [
             self.leitfaden_begruessung, self.leitfaden_legitimation, self.leitfaden_pka,
             self.leitfaden_kek, self.leitfaden_angebot, self.leitfaden_zusammenfassung, self.leitfaden_kzb
         ]
+        ja_count = sum(1 for x in leitfaden_fields if x == "Ja")
+        total_relevant_fields = sum(1 for x in leitfaden_fields if x != "k.A.")
         
-        # Zähle relevante Felder (nicht "k.A.")
-        relevant_fields_actual = [f for f in leitfaden_fields if f != "k.A."]
-        
-        if not relevant_fields_actual: # Wenn alle "k.A." sind oder die Liste leer ist
-            return 100.0 # Oder None, oder wie du es handhaben möchtest
+        if total_relevant_fields == 0:
+            return "N/A" 
+        return f"{ja_count}/{total_relevant_fields}"
 
-        ja_count = sum(1 for x in relevant_fields_actual if x == "Ja")
-        total_relevant_fields = len(relevant_fields_actual)
+    @property
+    def overall_score(self): # Berechnet den Score jetzt NUR basierend auf performance_mark
+        if self.performance_mark is None:
+            return 0.0 # Oder einen anderen Standardwert, wenn keine Note gegeben wurde
         
-        return (ja_count / total_relevant_fields) * 100
+        # performance_mark ist 0-10, umgerechnet auf 0-100%
+        performance_percentage = (float(self.performance_mark) / 10.0) * 100.0
+        return round(performance_percentage, 2)
+
+    # Die Property leitfaden_score_percentage wird nicht mehr für overall_score benötigt
+    # und kann entfernt werden, wenn sie nirgendwo anders verwendet wird.
+    # @property
+    # def leitfaden_score_percentage(self): 
+    #     # ... (alte Logik) ...
+
+    def __repr__(self):
+        return f'<Coaching {self.id} for TeamMember {self.team_member_id} on {self.coaching_date}>'
 
     @property
     def overall_score(self):
