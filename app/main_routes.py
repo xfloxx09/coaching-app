@@ -120,7 +120,6 @@ def index():
     team_filter_arg = request.args.get('team', "all") 
 
     # Basis-Query für die Liste und für die Summary-Boxen
-    base_filtered_coachings_q = Coaching.query.filter(Coaching.is_archived == False) # Filter für nicht-archivierte Coachings
     start_date, end_date = calculate_date_range(period_filter_arg)
     if start_date:
         base_filtered_coachings_q = base_filtered_coachings_q.filter(Coaching.coaching_date >= start_date)
