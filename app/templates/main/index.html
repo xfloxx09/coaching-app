@@ -122,12 +122,11 @@
                     <tr class="collapse" id="coachingDetails{{ coaching.id }}">
                         <td colspan="11"> 
                             <div class="card card-body">
-                            <strong>Stil:</strong> {{ coaching.coaching_style if coaching.coaching_style else '-'}} 
+                            <strong>Betreff:</strong> {{ coaching.coaching_subject if coaching.coaching_subject else '-' }}<br>
+                                <strong>Stil:</strong> {{ coaching.coaching_style if coaching.coaching_style else '-'}} 
                             {% if coaching.coaching_style == 'TCAP' and coaching.tcap_id %} {# Zeige T-CAP ID nur, wenn Stil TCAP ist und ID existiert #}
                                 (T-CAP ID: {{ coaching.tcap_id }})
                             {% endif %}<br>
-                            <strong>Betreff:</strong> {{ coaching.coaching_subject if coaching.coaching_subject else '-' }}<br>
-                                <strong>Stil:</strong> {{ coaching.coaching_style if coaching.coaching_style else '-'}} {% if coaching.tcap_id %}(T-CAP ID: {{ coaching.tcap_id }}){% endif %}<br>
                                 <strong>Betreff:</strong> {{ coaching.coaching_subject if coaching.coaching_subject else '-' }}<br>
                                 <strong>Leitfaden:</strong><br>
                                 Begrüßung: {{ coaching.leitfaden_begruessung }} |
