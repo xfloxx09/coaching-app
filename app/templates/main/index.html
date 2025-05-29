@@ -1,4 +1,4 @@
-{# app/templates/main/index.html - Mit allen Chart-Anpassungen und korrigiertem JS #}
+{# app/templates/main/index.html - Korrigierte Chart-Reihen und JS #}
 {% extends "base.html" %}
 
 {% block content %}
@@ -47,9 +47,9 @@
         </div>
     </form>
 
-    {# Graphen - 2x2 Anordnung #}
-    <div class="row">
-        <div class="col-md-6 mb-4">
+    {# Graphen - KORRIGIERTE 2x2 Anordnung #}
+    <div class="row"> {# ERSTE REIHE VON CHARTS #}
+        <div class="col-md-6 mb-4"> 
             <div class="card h-100">
                 <div class="card-header telekom-bg-magenta text-white">Ø Performance / Team (%)</div>
                 <div class="card-body d-flex align-items-center justify-content-center p-2">
@@ -58,30 +58,33 @@
             </div>
         </div>
         <div class="col-md-6 mb-4">
-        <div class="card h-100">
-            <div class="card-header telekom-bg-magenta text-white">Ø Coaching-Dauer / Team (Min.)</div>
-            <div class="card-body d-flex align-items-center justify-content-center p-2">
-                <canvas id="avgTimeByTeamChart" style="/* max-height: 300px; */ width: 100%;"></canvas> {# max-height testweise entfernt/erhöht #}
+            <div class="card h-100">
+                <div class="card-header telekom-bg-magenta text-white">Ø Coaching-Dauer / Team (Min.)</div>
+                <div class="card-body d-flex align-items-center justify-content-center p-2">
+                    <canvas id="avgTimeByTeamChart" style="max-height: 300px; width: 100%;"></canvas>
+                </div>
             </div>
         </div>
-    </div>
-    <div class="col-md-6 mb-4">
-        <div class="card h-100">
-            <div class="card-header telekom-bg-magenta text-white">Anzahl Coachings / Team</div>
-            <div class="card-body d-flex align-items-center justify-content-center p-2">
-                <canvas id="coachingsDoneByTeamChart" style="/* max-height: 300px; */ width: 100%;"></canvas> {# max-height testweise entfernt/erhöht #}
+    </div> {# ENDE DER ERSTEN REIHE VON CHARTS #}
+
+    <div class="row mt-0 mt-md-4"> {# ZWEITE REIHE VON CHARTS #}
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header telekom-bg-magenta text-white">Anzahl Coachings / Team</div>
+                <div class="card-body d-flex align-items-center justify-content-center p-2">
+                    <canvas id="coachingsDoneByTeamChart" style="max-height: 300px; width: 100%;"></canvas>
+                </div>
             </div>
         </div>
-    </div>
         <div class="col-md-6 mb-4"> 
             <div class="card h-100">
-                <div class="card-header telekom-bg-magenta text-white">Coaching-Themen</div>
+                <div class="card-header telekom-bg-magenta text-white">Verteilung Coaching-Themen</div>
                 <div class="card-body d-flex align-items-center justify-content-center p-2">
                     <canvas id="subjectDistributionChart" style="max-height: 300px; width: 100%;"></canvas>
                 </div>
             </div>
         </div>
-    </div>
+    </div> {# ENDE DER ZWEITEN REIHE VON CHARTS #}
     <hr class="mt-0">
 
     {# Coaching Liste #}
@@ -139,31 +142,23 @@
                         <td colspan="11"> 
                             <div class="card card-body">
                                 <strong>Stil:</strong> {{ coaching.coaching_style if coaching.coaching_style else '-'}} 
-                            {% if coaching.coaching_style == 'TCAP' and coaching.tcap_id %}
-                                (T-CAP ID: {{ coaching.tcap_id }})
-                            {% endif %}<br>
-                            <strong>Betreff:</strong> {{ coaching.coaching_subject if coaching.coaching_subject else '-' }}<br>
-                            
-                            <hr> {# Trenner vor Leitfaden #}
-                            <strong>Leitfaden-Checkmarks:</strong><br>
-                            <ul class="list-unstyled ml-3"> {# Ungeordnete Liste für bessere Darstellung #}
-                            {% for name, value in coaching.leitfaden_fields_list %}
-                                <li>{{ name }}: <strong>{{ value }}</strong></li>
-                            {% endfor %}
-                            </ul>
-                            <strong>Leitfaden Erfüllung:</strong> {{ coaching.leitfaden_erfuellung_display }}
-                            
-                            {% if coaching.coach_notes %}
-                            <hr>
-                            <strong>Notizen des Coaches:</strong><br>
-                            <p style="white-space: pre-wrap;">{{ coaching.coach_notes }}</p>
-                            {% endif %}
+                                {% if coaching.coaching_style == 'TCAP' and coaching.tcap_id %}
+                                    (T-CAP ID: {{ coaching.tcap_id }})
+                                {% endif %}<br>
+                                <strong>Betreff:</strong> {{ coaching.coaching_subject if coaching.coaching_subject else '-' }}<br>
+                                <strong>Leitfaden Erfüllung:</strong> {{ coaching.leitfaden_erfuellung_display }}
+                                
+                                {% if coaching.coach_notes %}
+                                <hr>
+                                <strong>Notizen des Coaches:</strong><br>
+                                <p style="white-space: pre-wrap;">{{ coaching.coach_notes }}</p>
+                                {% endif %}
 
-                            {% if coaching.project_leader_notes %}
-                            <hr>
-                            <strong>PL/QM Notiz:</strong><br>
-                            <p style="white-space: pre-wrap;">{{ coaching.project_leader_notes }}</p>
-                            {% endif %}
+                                {% if coaching.project_leader_notes %}
+                                <hr>
+                                <strong>PL/QM Notiz:</strong><br>
+                                <p style="white-space: pre-wrap;">{{ coaching.project_leader_notes }}</p>
+                                {% endif %}
                             </div>
                         </td>
                     </tr>
@@ -254,53 +249,44 @@
             } else if (ctx) { const c = ctx.getContext('2d'); c.font = "16px Arial"; c.fillStyle = textColor; c.textAlign = "center"; c.fillText(message, ctx.canvas.width / 2, ctx.canvas.height / 2); }
         }
 
-        const commonChartOptions = { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { color: textColor, precision: 0 } }, x: { ticks: { color: textColor } } }, plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'end', color: textColor, font: { weight: 'bold' }, formatter: Math.round } } };
+        const commonChartOptions = { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            scales: { 
+                y: { beginAtZero: true, ticks: { color: textColor, precision: 0 } }, 
+                x: { ticks: { color: textColor } } 
+            }, 
+            plugins: { 
+                legend: { display: false }, // Legende standardmäßig aus
+                datalabels: { 
+                    anchor: 'end', 
+                    align: 'end', 
+                    color: textColor, 
+                    font: { weight: 'bold' }, 
+                    formatter: Math.round 
+                } 
+            } 
+        };
 
-       // 1. Ø Performance / Team (%)
-        drawChartWithMessage(chartAvgPerformanceCtx, {
-            type: 'bar',
-            data: { 
-                labels: chartLabels, 
-                datasets: [{ 
-                    label: ' ', // <--- EINZELNES LEERZEICHEN
-                    data: chartAvgPerformanceData, 
-                    backgroundColor: telekomMagenta, 
-                    borderColor: telekomMagentaBorder, 
-                    borderWidth: 1 
-                }] 
-            },
+        // 1. Ø Performance / Team (%)
+        drawChartWithMessage(chartAvgPerformanceCtx, { 
+            type: 'bar', 
+            data: { labels: chartLabels, datasets: [{ 
+                label: ' ', // Dataset-Label auf Leerzeichen gesetzt
+                data: chartAvgPerformanceData, 
+                backgroundColor: telekomMagenta, 
+                borderColor: telekomMagentaBorder, 
+                borderWidth: 1 
+            }] }, 
             options: { 
-                ...commonChartOptions, // Stellt sicher, dass legend: { display: false } hier greift
-                scales: { 
-                    ...commonChartOptions.scales, 
-                    y: { 
-                        ...commonChartOptions.scales.y, 
-                        min: 0,
-                        max: 100,
-                        ticks: { 
-                            ...commonChartOptions.scales.y.ticks, 
-                            stepSize: 10,
-                            callback: function(value) {return value + "%"} 
-                        } 
-                    } 
-                }, 
+                ...commonChartOptions, 
+                scales: { ...commonChartOptions.scales, y: { ...commonChartOptions.scales.y, min:0, max: 100, ticks: { ...commonChartOptions.scales.y.ticks, stepSize: 10, callback: function(value) {return value + "%"} } } }, 
                 plugins: { 
-                    // commonChartOptions.plugins enthält legend: {display: false}
-                    // und eine Standard-datalabels-Konfiguration.
-                    // Wir überschreiben/ergänzen hier nur spezifische Teile.
-                    datalabels: {
-                        ...commonChartOptions.plugins.datalabels, // Übernehme Standardeinstellungen
-                        formatter: (value) => Math.round(value) + '%' // Spezifischer Formatter
-                    }, 
-                    annotation: { 
-                        annotations: { 
-                            line1: { 
-                                type: 'line', yMin: 80, yMax: 80, 
-                                borderColor: telekomDarkGreen, borderWidth: 2, borderDash: [6, 6], 
-                                label: { enabled: false } 
-                            } 
-                        } 
-                    } 
+                    ...commonChartOptions.plugins, 
+                    datalabels: {...commonChartOptions.plugins.datalabels, formatter: (value) => Math.round(value) + '%'}, 
+                    annotation: { annotations: { 
+                        line1: { type: 'line', yMin: 80, yMax: 80, borderColor: telekomDarkGreen, borderWidth: 2, borderDash: [6, 6], label: { enabled: false } } 
+                    } } 
                 } 
             }
         });
@@ -313,9 +299,9 @@
         }
         drawChartWithMessage(chartAvgTimeCtx, { 
             type: 'bar', 
-            data: { labels: chartLabels, datasets: [{ label: 'Ø Coaching-Dauer (Min.)', data: chartAvgTimeData, backgroundColor: telekomGray, borderColor: telekomGrayBorder, borderWidth: 1 }] }, 
+            data: { labels: chartLabels, datasets: [{ label: ' ', data: chartAvgTimeData, backgroundColor: telekomGray, borderColor: telekomGrayBorder, borderWidth: 1 }] }, 
             options: { ...commonChartOptions, 
-                       scales: { ...commonChartOptions.scales, y: { ...commonChartOptions.scales.y, max: maxAvgTime > 0 ? Math.ceil(maxAvgTime * 1.2) + 5 : 30 } }, 
+                       scales: { ...commonChartOptions.scales, y: { ...commonChartOptions.scales.y, max: maxAvgTime > 0 ? Math.ceil(maxAvgTime * 1.25) + 5 : 30 } }, 
                        plugins: { ...commonChartOptions.plugins, datalabels: {...commonChartOptions.plugins.datalabels, formatter: (value) => Math.round(value) + ' Min'} } 
             } 
         });
@@ -328,19 +314,48 @@
         }
         drawChartWithMessage(chartCoachingsDoneCtx, { 
             type: 'bar', 
-            data: { labels: chartLabels, datasets: [{ label: 'Anzahl Coachings', data: chartCoachingsDoneData, backgroundColor: pieColors[2], borderColor: pieColors[2].replace('0.7','1'), borderWidth: 1 }] }, 
+            data: { labels: chartLabels, datasets: [{ label: ' ', data: chartCoachingsDoneData, backgroundColor: pieColors[2], borderColor: pieColors[2].replace('0.7','1'), borderWidth: 1 }] }, 
             options: { ...commonChartOptions, 
                        scales: { ...commonChartOptions.scales, 
                                  y: { ...commonChartOptions.scales.y, 
                                       ticks: { ...commonChartOptions.scales.y.ticks, stepSize: 1, precision: 0 },
-                                      max: maxCoachingsDone > 0 ? Math.ceil(maxCoachingsDone * 1.2) + 1 : 5 
+                                      max: maxCoachingsDone > 0 ? Math.ceil(maxCoachingsDone * 1.25) + 1 : 5 
                                     } 
                                } 
                      }
         });
 
         // 4. Verteilung Coaching-Themen - Kreisdiagramm
-        drawChartWithMessage(subjectDistributionCtx, { type: 'pie', data: { labels: subjectChartLabels, datasets: [{ label: 'Coaching-Themen', data: subjectChartValues, backgroundColor: pieColors.slice(0, subjectChartLabels.length), hoverOffset: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: 'top', labels: { color: textColor } }, datalabels: { formatter: (value, ctx) => { let sum = 0; let dataArr = ctx.chart.data.datasets[0].data; dataArr.map(data => { sum += data; }); if (sum === 0) return '0%'; let percentage = (value*100 / sum).toFixed(1)+"%"; return ctx.chart.data.labels[ctx.dataIndex] + '\\n' + percentage; }, color: '#fff', align: 'center', textAlign: 'center', font: {size: 10, weight: 'bold'} } } } }, "Keine Daten für Themenverteilung verfügbar.");
+        drawChartWithMessage(subjectDistributionCtx, { 
+            type: 'pie', 
+            data: {
+                labels: subjectChartLabels,
+                datasets: [{
+                    label: 'Coaching-Themen', data: subjectChartValues, 
+                    backgroundColor: pieColors.slice(0, subjectChartLabels.length), 
+                    hoverOffset: 4
+                }]
+            }, 
+            options: { 
+                responsive: true, maintainAspectRatio: false, 
+                plugins: { 
+                    legend: { display: true, position: 'top', labels: { color: textColor } }, // Legende für Pie-Chart AN
+                    datalabels: { 
+                        formatter: (value, ctx) => { 
+                            let sum = 0; 
+                            let dataArr = ctx.chart.data.datasets[0].data; 
+                            dataArr.map(data => { sum += data; }); 
+                            if (sum === 0) return '0%'; 
+                            let percentage = (value*100 / sum).toFixed(1)+"%"; 
+                            // Zeige Label nur wenn Prozent > 0, um Überlappung zu reduzieren
+                            return (value*100 / sum) > 1 ? ctx.chart.data.labels[ctx.dataIndex] + '\\n' + percentage : ''; 
+                        }, 
+                        color: '#fff', align: 'center', textAlign: 'center', 
+                        font: {size: 10, weight: 'bold'} 
+                    } 
+                } 
+            } 
+        }, "Keine Daten für Themenverteilung verfügbar.");
     });
     </script>
 {% endblock %}
