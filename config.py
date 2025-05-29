@@ -17,7 +17,7 @@ class Config:
     print("DEBUG [config.py]: Innerhalb der Config-Klasse, VOR dem Lesen von Umgebungsvariablen.") # DEBUG
 
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'ein-sehr-geheimer-fallback-schluessel'
-    print(f"DEBUG [config.py]: SECRET_KEY gelesen als: {'SET (Länge: ' + str(len(SECRET_KEY)) + ')' if SECRET_KEY != 'ein-sehr-geheimer-fallback-schluessel' else 'Fallback verwendet'}") # DEBUG
+    print(f"DEBUG [config.py]: SECRET_KEY gelesen als: {'SET (Länge: ' + str(len(SECRET_KEY)) + ')' if SECRET_KEY != '1234' else 'Fallback verwendet'}") # DEBUG
     
     DATABASE_URL_FROM_ENV = os.environ.get('DATABASE_URL')
     print(f"DEBUG [config.py]: ROHER Wert für DATABASE_URL aus os.environ: '{DATABASE_URL_FROM_ENV}' (Typ: {type(DATABASE_URL_FROM_ENV)})") # DEBUG
