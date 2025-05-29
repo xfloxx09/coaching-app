@@ -280,7 +280,7 @@
             }] }, 
             options: { 
                 ...commonChartOptions, 
-                scales: { ...commonChartOptions.scales, y: { ...commonChartOptions.scales.y, min:0, max: 100, ticks: { ...commonChartOptions.scales.y.ticks, stepSize: 10, callback: function(value) {return value + "%"} } } }, 
+                scales: { ...commonChartOptions.scales, y: { ...commonChartOptions.scales.y, min:0, max: 105, ticks: { ...commonChartOptions.scales.y.ticks, stepSize: 10, callback: function(value) {return value + "%"} } } }, 
                 plugins: { 
                     ...commonChartOptions.plugins, 
                     datalabels: {...commonChartOptions.plugins.datalabels, formatter: (value) => Math.round(value) + '%'}, 
