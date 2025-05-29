@@ -1,45 +1,53 @@
-{# app/templates/main/index.html - Mit Datumsbereichsfilter und Chart-Anpassungen #}
+{# app/templates/main/index.html - Mit Dropdown-Zeitraumfilter #}
 {% extends "base.html" %}
 
 {% block content %}
     <h2>{{ title }}</h2>
 
-    {# Filteroptionen mit Datumsbereich #}
+    {# ANGEPASSTE Filteroptionen mit Dropdown für Zeitraum #}
     <form method="GET" action="{{ url_for('main.index') }}" id="filterForm" class="mb-4">
         <div class="form-row align-items-end">
-            <div class="col-md-3 form-group">
-                <label for="date_from">Von Datum:</label>
-                <input type="date" class="form-control form-control-sm" id="date_from" name="date_from" 
-                       value="{{ current_date_from if current_date_from else '' }}">
-            </div>
-            <div class="col-md-3 form-group">
-                <label for="date_to">Bis Datum:</label>
-                <input type="date" class="form-control form-control-sm" id="date_to" name="date_to"
-                       value="{{ current_date_to if current_date_to else '' }}">
+            <div class="col-md-auto">
+                <div class="form-group mr-2">
+                    <label for="period_filter" class="mr-2">Zeitraum:</label>
+                    <select name="period" id="period_filter" class="form-control custom-select form-control-sm">
+                        <option value="all" {% if not current_period_filter or current_period_filter == 'all' %}selected{% endif %}>Alles</option>
+                        <option value="7days" {% if current_period_filter == '7days' %}selected{% endif %}>Letzte 7 Tage</option>
+                        <option value="30days" {% if current_period_filter == '30days' %}selected{% endif %}>Letzte 30 Tage</option>
+                        <option value="current_quarter" {% if current_period_filter == 'current_quarter' %}selected{% endif %}>Dieses Quartal</option>
+                        <option value="current_year" {% if current_period_filter == 'current_year' %}selected{% endif %}>Dieses Jahr</option>
+                    </select>
+                </div>
             </div>
             
-            <div class="col-md-3 form-group">
-                <label for="team_filter">Team:</label>
-                <select name="team" id="team_filter" class="form-control custom-select form-control-sm">
-                    <option value="all" {% if current_team_id_filter == 'all' or not current_team_id_filter %}selected{% endif %}>Alle Teams</option>
-                    {% for team_obj in all_teams_for_filter %} 
-                    <option value="{{ team_obj.id }}" {% if current_team_id_filter == team_obj.id|string %}selected{% endif %}>
-                        {{ team_obj.name }}
-                    </option>
-                    {% endfor %}
-                </select>
+            <div class="col-md-auto">
+                <div class="form-group mr-2">
+                    <label for="team_filter" class="mr-2">Team:</label>
+                    <select name="team" id="team_filter" class="form-control custom-select form-control-sm">
+                        <option value="all" {% if current_team_id_filter == 'all' or not current_team_id_filter %}selected{% endif %}>Alle Teams</option>
+                        {% for team_obj in all_teams_for_filter %} 
+                        <option value="{{ team_obj.id }}" {% if current_team_id_filter == team_obj.id|string %}selected{% endif %}>
+                            {{ team_obj.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
             </div>
-
-            <div class="col-md-2 form-group">
-                <button type="submit" class="btn telekom-button btn-sm btn-block">Filtern</button>
+            
+            <div class="col-md-auto">
+                <div class="form-group">
+                    <button type="submit" class="btn telekom-button btn-sm">Filter anwenden</button>
+                </div>
             </div>
-            <div class="col-md-1 form-group">
-                 <a href="{{ url_for('main.index') }}" class="btn btn-secondary btn-sm btn-block" title="Filter zurücksetzen">X</a>
+            <div class="col-md-auto">
+                 <div class="form-group">
+                    <a href="{{ url_for('main.index') }}" class="btn btn-secondary btn-sm">Filter zurücksetzen</a>
+                 </div>
             </div>
         </div>
     </form>
 
-    {# Graphen - 2x2 Anordnung #}
+    {# Graphen - 2x2 Anordnung (bleibt strukturell gleich) #}
     <div class="row">
         <div class="col-md-6 mb-4">
             <div class="card h-100">
@@ -78,7 +86,7 @@
     </div>
     <hr class="mt-0">
 
-    {# Coaching Liste #}
+    {# Coaching Liste (Paginierungslinks angepasst) #}
     <h3 class="mt-3">Coaching Liste (Angezeigt: {{ coachings_paginated.items|length if coachings_paginated and coachings_paginated.items else 0 }}, Gesamt gefiltert für Rolle: {{ total_coachings if total_coachings is not none else 0 }})</h3>
     {% if coachings_paginated and coachings_paginated.items %}
         <div class="table-responsive">
@@ -161,7 +169,7 @@
         <nav aria-label="Coaching Navigation" class="mt-4">
             <ul class="pagination justify-content-center">
                 {% if coachings_paginated.has_prev %}
-                    <li class="page-item"><a class="page-link telekom-page-link" href="{{ url_for('main.index', page=coachings_paginated.prev_num, date_from=request.args.get('date_from',''), date_to=request.args.get('date_to',''), team=current_team_id_filter) }}">Vorherige</a></li>
+                    <li class="page-item"><a class="page-link telekom-page-link" href="{{ url_for('main.index', page=coachings_paginated.prev_num, period=current_period_filter, team=current_team_id_filter) }}">Vorherige</a></li>
                 {% else %}
                     <li class="page-item disabled"><span class="page-link">Vorherige</span></li>
                 {% endif %}
@@ -171,7 +179,7 @@
                         {% if coachings_paginated.page == page_num %}
                             <li class="page-item active"><span class="page-link telekom-page-active">{{ page_num }}</span></li>
                         {% else %}
-                            <li class="page-item"><a class="page-link telekom-page-link" href="{{ url_for('main.index', page=page_num, date_from=request.args.get('date_from',''), date_to=request.args.get('date_to',''), team=current_team_id_filter) }}">{{ page_num }}</a></li>
+                            <li class="page-item"><a class="page-link telekom-page-link" href="{{ url_for('main.index', page=page_num, period=current_period_filter, team=current_team_id_filter) }}">{{ page_num }}</a></li>
                         {% endif %}
                     {% else %}
                         <li class="page-item disabled"><span class="page-link">...</span></li>
@@ -179,7 +187,7 @@
                 {% endfor %} 
 
                 {% if coachings_paginated.has_next %}
-                    <li class="page-item"><a class="page-link telekom-page-link" href="{{ url_for('main.index', page=coachings_paginated.next_num, date_from=request.args.get('date_from',''), date_to=request.args.get('date_to',''), team=current_team_id_filter) }}">Nächste</a></li>
+                    <li class="page-item"><a class="page-link telekom-page-link" href="{{ url_for('main.index', page=coachings_paginated.next_num, period=current_period_filter, team=current_team_id_filter) }}">Nächste</a></li>
                 {% else %}
                     <li class="page-item disabled"><span class="page-link">Nächste</span></li>
                 {% endif %}
@@ -203,11 +211,16 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/1.4.0/chartjs-plugin-annotation.min.js"></script>
 
     <script>
+    // Dein JavaScript für die Charts bleibt exakt so, wie in der letzten Version,
+    // die funktioniert hat (mit den Korrekturen für die Datalabels und die Benchmark-Linie).
+    // Ich füge es hier nicht erneut ein, um die Antwort kürzer zu halten.
+    // Stelle sicher, dass es die Variablen verwendet, die jetzt von der Route kommen
+    // (z.B. chart_avg_performance_mark_percentage, subject_chart_labels, etc.)
     document.addEventListener('DOMContentLoaded', function () {
         if (typeof ChartDataLabels !== 'undefined') { Chart.register(ChartDataLabels); } 
-        else { console.warn("ChartDataLabels Plugin nicht geladen."); }
+        else { console.warn("ChartDataLabels Plugin wurde nicht geladen."); }
         if (typeof ChartAnnotation !== 'undefined') { Chart.register(ChartAnnotation); } 
-        else { console.warn("ChartAnnotation Plugin nicht geladen."); }
+        else { console.warn("ChartAnnotation Plugin wurde nicht geladen."); }
 
         const chartAvgPerformanceCtx = document.getElementById('avgPerfByTeamChart');
         const chartAvgTimeCtx = document.getElementById('avgTimeByTeamChart');
@@ -245,8 +258,8 @@
         drawChartWithMessage(chartAvgPerformanceCtx, { type: 'bar', data: { labels: chartLabels, datasets: [{ label: 'Ø Performance Mark (0-100 Skala)', data: chartAvgPerformanceData, backgroundColor: telekomMagenta, borderColor: telekomMagentaBorder, borderWidth: 1 }] }, options: { ...commonChartOptions, scales: { ...commonChartOptions.scales, y: { ...commonChartOptions.scales.y, max: 100, ticks: { ...commonChartOptions.scales.y.ticks, callback: function(value) {return value + "%"} } } }, plugins: { ...commonChartOptions.plugins, datalabels: {...commonChartOptions.plugins.datalabels, formatter: (value) => Math.round(value) + '%'}, annotation: { annotations: { line1: { type: 'line', yMin: 80, yMax: 80, borderColor: telekomDarkGreen, borderWidth: 2, borderDash: [6, 6], label: { enabled: false } } } } } } });
         drawChartWithMessage(chartAvgTimeCtx, { type: 'bar', data: { labels: chartLabels, datasets: [{ label: 'Ø Coaching-Dauer (Min.)', data: chartAvgTimeData, backgroundColor: telekomGray, borderColor: telekomGrayBorder, borderWidth: 1 }] }, options: { ...commonChartOptions, plugins: { ...commonChartOptions.plugins, datalabels: {...commonChartOptions.plugins.datalabels, formatter: (value) => Math.round(value) + ' Min'} } } });
         let maxCoachingsDone = 0; if (chartCoachingsDoneData && chartCoachingsDoneData.length > 0) { maxCoachingsDone = Math.max(...chartCoachingsDoneData); }
-        drawChartWithMessage(chartCoachingsDoneCtx, { type: 'bar', data: { labels: chartLabels, datasets: [{ label: 'Anzahl Coachings', data: chartCoachingsDoneData, backgroundColor: pieColors[2], borderColor: pieColors[2].replace('0.7','1'), borderWidth: 1 }] }, options: { ...commonChartOptions, scales: { ...commonChartOptions.scales, y: { ...commonChartOptions.scales.y, ticks: { ...commonChartOptions.scales.y.ticks, stepSize: 1 }, max: maxCoachingsDone > 0 ? Math.ceil(maxCoachingsDone * 1.2) +1 : 10 } } } }); // +1 zum max für besseren Abstand
-        drawChartWithMessage(subjectDistributionCtx, { type: 'pie', data: { labels: subjectChartLabels, datasets: [{ label: 'Coaching-Themen', data: subjectChartValues, backgroundColor: pieColors.slice(0, subjectChartLabels.length), hoverOffset: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { color: textColor } }, datalabels: { formatter: (value, ctx) => { let sum = 0; let dataArr = ctx.chart.data.datasets[0].data; dataArr.map(data => { sum += data; }); if (sum === 0) return '0%'; let percentage = (value*100 / sum).toFixed(1)+"%"; return ctx.chart.data.labels[ctx.dataIndex] + '\\n' + percentage; }, color: '#fff', align: 'center', textAlign: 'center', font: {size: 10, weight: 'bold'} } } } }, "Keine Daten für Themenverteilung verfügbar.");
+        drawChartWithMessage(chartCoachingsDoneCtx, { type: 'bar', data: { labels: chartLabels, datasets: [{ label: 'Anzahl Coachings', data: chartCoachingsDoneData, backgroundColor: pieColors[2], borderColor: pieColors[2].replace('0.7','1'), borderWidth: 1 }] }, options: { ...commonChartOptions, scales: { ...commonChartOptions.scales, y: { ...commonChartOptions.scales.y, ticks: { ...commonChartOptions.scales.y.ticks, stepSize: 1 }, max: maxCoachingsDone > 0 ? Math.ceil(maxCoachingsDone * 1.2) +1 : 10 } } } });
+        drawChartWithMessage(subjectDistributionCtx, { type: 'pie', data: { labels: subjectChartLabels, datasets: [{ label: 'Coaching-Themen', data: subjectChartValues, backgroundColor: pieColors.slice(0, subjectChartLabels.length), hoverOffset: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: 'top', labels: { color: textColor } }, datalabels: { formatter: (value, ctx) => { let sum = 0; let dataArr = ctx.chart.data.datasets[0].data; dataArr.map(data => { sum += data; }); if (sum === 0) return '0%'; let percentage = (value*100 / sum).toFixed(1)+"%"; return ctx.chart.data.labels[ctx.dataIndex] + '\\n' + percentage; }, color: '#fff', align: 'center', textAlign: 'center', font: {size: 10, weight: 'bold'} } } } }, "Keine Daten für Themenverteilung verfügbar.");
     });
     </script>
 {% endblock %}
