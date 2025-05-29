@@ -103,7 +103,7 @@
                             A:{{ coaching.leitfaden_angebot }} |
                             Z:{{ coaching.leitfaden_zusammenfassung }} |
                             KZB:{{ coaching.leitfaden_kzb }} <br>
-                            <strong>Leitfaden Erfüllung:</strong> {{ "%.2f"|format(coaching.leitfaden_score_details) }}%
+                            <strong>Leitfaden Erfüllung:</strong> {{ coaching.leitfaden_erfuellung_display }}%
                             
                             {% if coaching.coach_notes %} {# NEU #}
                             <hr>
