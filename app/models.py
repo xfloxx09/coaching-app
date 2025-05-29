@@ -83,9 +83,16 @@ class Coaching(db.Model):
             self.leitfaden_begruessung, self.leitfaden_legitimation, self.leitfaden_pka,
             self.leitfaden_kek, self.leitfaden_angebot, self.leitfaden_zusammenfassung, self.leitfaden_kzb
         ]
-        ja_count = sum(1 for x in leitfaden_fields if x == "Ja")
-        total_relevant_fields = sum(1 for x in leitfaden_fields if x != "k.A.")
-        if total_relevant_fields == 0: return 0.0
+        
+        # Zähle relevante Felder (nicht "k.A.")
+        relevant_fields_actual = [f for f in leitfaden_fields if f != "k.A."]
+        
+        if not relevant_fields_actual: # Wenn alle "k.A." sind oder die Liste leer ist
+            return 100.0 # Oder None, oder wie du es handhaben möchtest
+
+        ja_count = sum(1 for x in relevant_fields_actual if x == "Ja")
+        total_relevant_fields = len(relevant_fields_actual)
+        
         return (ja_count / total_relevant_fields) * 100
 
     @property
