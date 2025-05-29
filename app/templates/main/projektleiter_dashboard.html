@@ -39,8 +39,13 @@
                         <div class="modal-content">
                             <form method="POST" action="{{ url_for('main.projektleiter_dashboard', page=coachings_paginated.page if coachings_paginated and coachings_paginated.page else 1) }}">
                                 
-                                {{ note_form.csrf_token }}  {# Explicitly render CSRF token from the form object passed by the route #}
-                                <input type="hidden" name="coaching_id" value="{{ coaching.id }}"> {# Manually provide the coaching_id #}
+                                {# CSRF-Token wird durch note_form.hidden_tag() oder explizit note_form.csrf_token gerendert #}
+                                {# Da ProjectLeaderNoteForm jetzt keine anderen HiddenFields mehr hat (coaching_id ist weg), #}
+                                {# können wir hidden_tag() verwenden, es rendert dann nur CSRF. #}
+                                {{ note_form.hidden_tag() }} 
+                                
+                                {# Manuelles Hidden Field für coaching_id, da es nicht mehr Teil der Formular-Klasse ist #}
+                                <input type="hidden" name="coaching_id" value="{{ coaching.id }}">
 
                                 <div class="modal-header telekom-bg-magenta text-white">
                                     <h5 class="modal-title" id="noteModalLabel-{{ coaching.id }}">Notiz für Coaching #{{ coaching.id }}</h5>
@@ -54,11 +59,10 @@
                                        <strong>Datum:</strong> {{ coaching.coaching_date.strftime('%d.%m.%Y %H:%M') }}</p>
                                     <div class="form-group">
                                         {{ note_form.notes.label(class="form-control-label") }}
-                                        {# Pre-fill with existing notes, or it will be empty. WTForms handles repopulating on validation error if form_to_validate is passed back. #}
-                                        {{ note_form.notes(class="form-control", rows=5, value=(coaching.project_leader_notes if coaching.project_leader_notes else "")) }}
-                                        {% if note_form.errors.notes %} {# Display errors if the main page re-renders with errors in note_form #}
+                                        {{ note_form.notes(class="form-control " + ( "is-invalid" if note_form.notes.errors else "" ), rows=5, value=(coaching.project_leader_notes if coaching.project_leader_notes else "")) }}
+                                        {% if note_form.notes.errors %} 
                                             <div class="invalid-feedback d-block">
-                                                {% for error in note_form.errors.notes %}<span>{{ error }}</span><br>{% endfor %}
+                                                {% for error in note_form.notes.errors %}<span>{{ error }}</span><br>{% endfor %}
                                             </div>
                                         {% endif %}
                                     </div>
