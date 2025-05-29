@@ -120,7 +120,7 @@ class CoachingForm(FlaskForm):
 class ProjectLeaderNoteForm(FlaskForm):
     # coaching_id ist nicht mehr hier, da es manuell im Template als <input type="hidden"> gesendet wird.
     # Das Formular ist jetzt nur für 'notes' und das CSRF-Token zuständig.
-    notes = TextAreaField('Notizen des Projektleiters', 
+    notes = TextAreaField('PL/QM Notiz', 
                           validators=[DataRequired("Die Notiz darf nicht leer sein."), 
                                       Length(max=2000)])
     # submit = SubmitField('Notiz speichern') # Der Submit-Button wird im HTML definiert
