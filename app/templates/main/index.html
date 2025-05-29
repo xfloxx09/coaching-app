@@ -257,7 +257,7 @@
                 x: { ticks: { color: textColor } } 
             }, 
             plugins: { 
-                legend: { display: false }, // Legende standardmäßig aus
+                legend: { display: false }, 
                 datalabels: { 
                     anchor: 'end', 
                     align: 'end', 
@@ -282,28 +282,28 @@
                 }] 
             }, 
             options: { 
-                ...commonChartOptions, // Übernimmt responsive, maintainAspectRatio, Standard x-Skala, Standard y-Skala (beginAtZero, precision 0), Standard plugins (legend:false, datalabels)
+                ...commonChartOptions, 
                 scales: { 
-                    // x-Skala wird von commonChartOptions übernommen
+                    ...commonChartOptions.scales, 
                     y: { 
-                        ...commonChartOptions.scales.y, // Übernehme Basis y-Skalen-Optionen
-                        min: 0,
-                        max: 105, // Leicht über 100, damit 100% Tick sichtbar ist
+                        ...commonChartOptions.scales.y, 
+                        min:0, 
+                        max: 105, // Leicht über 100, um 100% Tick sicher anzuzeigen
                         ticks: { 
-                            ...commonChartOptions.scales.y.ticks, // Übernehme Basis y-Ticks-Optionen
+                            ...commonChartOptions.scales.y.ticks, 
                             stepSize: 10, 
                             callback: function(value) {
                                 if (value <= 100) { 
                                     return value + "%";
                                 }
-                                return ''; // Keine Beschriftung für Ticks > 100
+                                return ''; 
                             } 
-                        } // Ende y.ticks
-                    } // Ende y-Skala
-                }, // Ende scales
+                        } 
+                    } 
+                }, 
                 plugins: { 
-                    ...commonChartOptions.plugins, // Übernehme Standard-Plugin-Optionen (legend:false, datalabels)
-                    datalabels: { // Überschreibe/ergänze datalabels
+                    ...commonChartOptions.plugins, 
+                    datalabels: {
                         ...commonChartOptions.plugins.datalabels, 
                         formatter: (value) => Math.round(value) + '%'
                     }, 
@@ -316,8 +316,8 @@
                             } 
                         } 
                     } 
-                } // Ende plugins
-            } // Ende options
+                } 
+            }
         });
         
         // 2. Ø Coaching-Dauer / Team (Min.)
@@ -368,7 +368,7 @@
             options: { 
                 responsive: true, maintainAspectRatio: false, 
                 plugins: { 
-                    legend: { display: true, position: 'top', labels: { color: textColor } }, // Legende für Pie-Chart AN
+                    legend: { display: true, position: 'top', labels: { color: textColor } }, 
                     datalabels: { 
                         formatter: (value, ctx) => { 
                             let sum = 0; 
@@ -376,7 +376,6 @@
                             dataArr.map(data => { sum += data; }); 
                             if (sum === 0) return '0%'; 
                             let percentage = (value*100 / sum).toFixed(1)+"%"; 
-                            // Zeige Label nur wenn Prozent > 0, um Überlappung zu reduzieren
                             return (value*100 / sum) > 1 ? ctx.chart.data.labels[ctx.dataIndex] + '\\n' + percentage : ''; 
                         }, 
                         color: '#fff', align: 'center', textAlign: 'center', 
