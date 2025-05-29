@@ -203,7 +203,8 @@
         const chartCoachingsDoneCtx = document.getElementById('coachingsDoneByTeamChart');
 
         const chartLabels = {{ chart_labels|tojson|safe }};
-        const chartAvgPerformanceData = {{ chart_avg_performance|tojson|safe }};
+        // HIER DIE KORREKTUR: Verwende die Variable, die von der Route übergeben wird
+        const chartAvgPerformanceData = {{ chart_avg_performance_mark_percentage|tojson|safe }}; 
         const chartAvgTimeData = {{ chart_avg_time_spent|tojson|safe }};
         const chartCoachingsDoneData = {{ chart_coachings_done|tojson|safe }};
 
@@ -224,14 +225,15 @@
             } else if (ctx) {
                 const canvasCtx = ctx.getContext('2d');
                 canvasCtx.font = "16px Arial";
-                canvasCtx.fillStyle = "#f0f0f0"; // Helle Textfarbe für dunklen Hintergrund
+                canvasCtx.fillStyle = "#f0f0f0";
                 canvasCtx.textAlign = "center";
                 canvasCtx.fillText("Keine Daten für dieses Chart verfügbar.", ctx.width / 2, ctx.height / 2);
             }
         }
 
         drawChart(chartAvgPerformanceCtx, 'bar', chartLabels, 
-            [{ label: 'Ø Performance Score (%)', data: chartAvgPerformanceData, backgroundColor: telekomMagenta, borderColor: telekomMagentaBorder, borderWidth: 1 }],
+            // HIER DIE KORREKTUR für Label und Datenquelle:
+            [{ label: 'Ø Performance Mark (0-100 Skala)', data: chartAvgPerformanceData, backgroundColor: telekomMagenta, borderColor: telekomMagentaBorder, borderWidth: 1 }],
             { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100, ticks: {color: '#f0f0f0'} }, x: {ticks: {color: '#f0f0f0'}} }, plugins: { legend: { display: true, labels: { color: '#f0f0f0'} } } }
         );
 
