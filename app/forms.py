@@ -91,7 +91,7 @@ class CoachingForm(FlaskForm):
     # ... (Rest der Felder wie coaching_style, coaching_subject etc. bleiben gleich) ...
     coaching_style = SelectField('Coaching Stil', choices=[('Side-by-Side', 'Side-by-Side'), ('TCAP', 'TCAP')], validators=[DataRequired("Coaching-Stil ist erforderlich.")])
     tcap_id = StringField('T-CAP ID (falls TCAP gewählt)')
-    coaching_subject = SelectField('Coaching Betreff', choices=COACHING_SUBJECT_CHOICES, validators=[DataRequired("Betreff ist erforderlich.")])
+    coaching_subject = SelectField('Coaching Thema', choices=COACHING_SUBJECT_CHOICES, validators=[DataRequired("Coaching-Thema ist erforderlich.")])
     leitfaden_begruessung = SelectField('Begrüßung', choices=LEITFADEN_CHOICES, default='k.A.')
     leitfaden_legitimation = SelectField('Legitimation', choices=LEITFADEN_CHOICES, default='k.A.')
     leitfaden_pka = SelectField('PKA', choices=LEITFADEN_CHOICES, default='k.A.')
