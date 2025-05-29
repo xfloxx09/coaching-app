@@ -29,7 +29,7 @@ class RegistrationForm(FlaskForm):
     team_id = SelectField('Team (nur für Teamleiter)', coerce=int, option_widget=None, choices=[])
     submit = SubmitField('Benutzer registrieren/aktualisieren')
 
-    def __init__(self, original_username=None, *args, **kwargs): # original_email entfernt
+    def __init__(self, original_username=None, *args, **kwargs):
         super(RegistrationForm, self).__init__(*args, **kwargs)
         self.original_username = original_username
         active_teams = Team.query.order_by(Team.name).all()
@@ -70,8 +70,8 @@ class TeamMemberForm(FlaskForm):
             self.team_id.choices = [(0, "Bitte zuerst Teams erstellen")]
 
 LEITFADEN_CHOICES = [('Ja', 'Ja'), ('Nein', 'Nein'), ('k.A.', 'k.A.')]
-COACHING_SUBJECT_CHOICES = [ # <--- NEUE CHOICES DEFINIERT
-    ('', '--- Bitte wählen ---'), # Optionale leere Auswahl
+COACHING_SUBJECT_CHOICES = [
+    ('', '--- Bitte wählen ---'),
     ('Sales', 'Sales'),
     ('Qualität', 'Qualität'),
     ('Allgemein', 'Allgemein') 
@@ -84,10 +84,7 @@ class CoachingForm(FlaskForm):
         ('TCAP', 'TCAP')
     ], validators=[DataRequired("Coaching-Stil ist erforderlich.")])
     tcap_id = StringField('T-CAP ID (falls TCAP gewählt)')
-    
-    # NEUES FELD
     coaching_subject = SelectField('Coaching Betreff', choices=COACHING_SUBJECT_CHOICES, validators=[DataRequired("Betreff ist erforderlich.")])
-    
     leitfaden_begruessung = SelectField('Begrüßung', choices=LEITFADEN_CHOICES, default='k.A.')
     leitfaden_legitimation = SelectField('Legitimation', choices=LEITFADEN_CHOICES, default='k.A.')
     leitfaden_pka = SelectField('PKA', choices=LEITFADEN_CHOICES, default='k.A.')
@@ -95,13 +92,9 @@ class CoachingForm(FlaskForm):
     leitfaden_angebot = SelectField('Angebot', choices=LEITFADEN_CHOICES, default='k.A.')
     leitfaden_zusammenfassung = SelectField('Zusammenfassung', choices=LEITFADEN_CHOICES, default='k.A.')
     leitfaden_kzb = SelectField('KZB', choices=LEITFADEN_CHOICES, default='k.A.')
-    
     performance_mark = IntegerField('Performance Note (0-10)', validators=[DataRequired("Performance Note ist erforderlich."), NumberRange(min=0, max=10)])
     time_spent = IntegerField('Zeitaufwand (Minuten)', validators=[DataRequired("Zeitaufwand ist erforderlich."), NumberRange(min=1)])
-
-    # NEUES FELD
-    coach_notes = TextAreaField('Notizen des Coaches', validators=[Length(max=2000)]) # Optional
-
+    coach_notes = TextAreaField('Notizen des Coaches', validators=[Length(max=2000)])
     submit = SubmitField('Coaching speichern')
 
     def __init__(self, current_user_role=None, current_user_team_id=None, *args, **kwargs):
@@ -125,6 +118,9 @@ class CoachingForm(FlaskForm):
                 self.team_member_id.choices = [(0, "Keine Teammitglieder gefunden")]
 
 class ProjectLeaderNoteForm(FlaskForm):
-    coaching_id = HiddenField()
-    notes = TextAreaField('Notizen des Projektleiters', validators=[DataRequired("Die Notiz darf nicht leer sein."), Length(max=2000)])
-    submit = SubmitField('Notiz speichern')
+    # coaching_id ist nicht mehr hier, da es manuell im Template als <input type="hidden"> gesendet wird.
+    # Das Formular ist jetzt nur für 'notes' und das CSRF-Token zuständig.
+    notes = TextAreaField('Notizen des Projektleiters', 
+                          validators=[DataRequired("Die Notiz darf nicht leer sein."), 
+                                      Length(max=2000)])
+    # submit = SubmitField('Notiz speichern') # Der Submit-Button wird im HTML definiert
