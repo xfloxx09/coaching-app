@@ -63,7 +63,7 @@
                 <div class="card-body text-center d-flex flex-column justify-content-center"> {# Flexbox für vertikale Zentrierung #}
                     <h5 class="card-title">Stunden gecoacht</h5>
                     <p class="card-text display-4">{{ time_coached_display.split('(')[0].strip() if time_coached_display else '0 Std. 0 Min.' }}</p> 
-                    <small>({{ time_coached_display.split('(')[1].split(')')[0] if time_coached_display and '(' in time_coached_display else '0' }} Min. gesamt)</small>
+                    <small>({{ time_coached_display.split('(')[1].split(')')[0] if time_coached_display and '(' in time_coached_display else '0' }} gesamt)</small>
                 </div>
             </div>
         </div>
