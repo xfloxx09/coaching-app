@@ -28,7 +28,16 @@
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('main.pl_qm_dashboard') }}">Notizen</a></li> 
                     {% endif %}
                     {% if current_user.role == 'Admin' %}
-                        <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.panel') }}">Admin Panel</a></li>
+                        <li class="nav-item dropdown"> {# Changed to dropdown for more admin options #}
+        <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            Admin
+        </a>
+        <div class="dropdown-menu" aria-labelledby="adminDropdown">
+            <a class="dropdown-item" href="{{ url_for('admin.panel') }}">Admin Panel</a>
+            <a class="dropdown-item" href="{{ url_for('admin.manage_coachings') }}">Coachings Verwalten</a>
+            {# Add other admin links here as needed #}
+        </div>
+    </li>
                     {% endif %}
                 {% endif %}
             </ul>
