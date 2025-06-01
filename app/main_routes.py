@@ -12,170 +12,163 @@ from calendar import monthrange
 
 bp = Blueprint('main', __name__)
 
-# --- HILFSFUNKTIONEN FÜR DATENAGGREGATION ---
-
+# --- HILFSFUNKTIONEN (get_month_name_german, calculate_date_range, etc. as you provided) ---
 def get_month_name_german(month_number):
-    months_german = {
-        1: "Januar", 2: "Februar", 3: "März", 4: "April", 5: "Mai", 6: "Juni",
-        7: "Juli", 8: "August", 9: "September", 10: "Oktober", 11: "November", 12: "Dezember"
-    }
+    months_german = {1:"Januar",2:"Februar",3:"März",4:"April",5:"Mai",6:"Juni",7:"Juli",8:"August",9:"September",10:"Oktober",11:"November",12:"Dezember"}
     return months_german.get(month_number, "")
 
 def calculate_date_range(period_filter_str=None):
-    now = datetime.now(timezone.utc)
-    start_date, end_date = None, None
-    if not period_filter_str or period_filter_str == 'all':
-        return None, None
-    if period_filter_str == '7days':
-        start_date = (now - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0)
-        end_date = now.replace(hour=23, minute=59, second=59, microsecond=999999)
-    elif period_filter_str == '30days':
-        start_date = (now - timedelta(days=29)).replace(hour=0, minute=0, second=0, microsecond=0)
-        end_date = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+    now = datetime.now(timezone.utc); start_date, end_date = None, None
+    if not period_filter_str or period_filter_str == 'all': return None, None
+    if period_filter_str == '7days': start_date=(now-timedelta(days=6)).replace(hour=0,minute=0,second=0,microsecond=0); end_date=now.replace(hour=23,minute=59,second=59,microsecond=999999)
+    elif period_filter_str == '30days': start_date=(now-timedelta(days=29)).replace(hour=0,minute=0,second=0,microsecond=0); end_date=now.replace(hour=23,minute=59,second=59,microsecond=999999)
     elif period_filter_str == 'current_quarter':
-        current_month_num = now.month; year = now.year
-        if 1 <= current_month_num <= 3: start_date, end_date = datetime(year,1,1,0,0,0,tzinfo=timezone.utc), datetime(year,3,monthrange(year,3)[1],23,59,59,999999,tzinfo=timezone.utc)
-        elif 4 <= current_month_num <= 6: start_date, end_date = datetime(year,4,1,0,0,0,tzinfo=timezone.utc), datetime(year,6,monthrange(year,6)[1],23,59,59,999999,tzinfo=timezone.utc)
-        elif 7 <= current_month_num <= 9: start_date, end_date = datetime(year,7,1,0,0,0,tzinfo=timezone.utc), datetime(year,9,monthrange(year,9)[1],23,59,59,999999,tzinfo=timezone.utc)
-        else: start_date, end_date = datetime(year,10,1,0,0,0,tzinfo=timezone.utc), datetime(year,12,monthrange(year,12)[1],23,59,59,999999,tzinfo=timezone.utc)
-    elif period_filter_str == 'current_year':
-        year = now.year; start_date = datetime(year,1,1,0,0,0,tzinfo=timezone.utc); end_date = datetime(year,12,monthrange(year,12)[1],23,59,59,999999,tzinfo=timezone.utc)
-    elif '-' in period_filter_str and len(period_filter_str) == 7:
-        try:
-            year_str, month_str = period_filter_str.split('-'); year = int(year_str); month_int = int(month_str)
-            if 1 <= month_int <= 12:
-                start_date = datetime(year, month_int, 1, 0, 0, 0, tzinfo=timezone.utc)
-                end_date = datetime(year, month_int, monthrange(year, month_int)[1], 23, 59, 59, 999999, tzinfo=timezone.utc)
+        c_month=now.month; yr=now.year
+        if 1<=c_month<=3: start_date,end_date=datetime(yr,1,1,0,0,0,tzinfo=timezone.utc),datetime(yr,3,monthrange(yr,3)[1],23,59,59,999999,tzinfo=timezone.utc)
+        elif 4<=c_month<=6: start_date,end_date=datetime(yr,4,1,0,0,0,tzinfo=timezone.utc),datetime(yr,6,monthrange(yr,6)[1],23,59,59,999999,tzinfo=timezone.utc)
+        elif 7<=c_month<=9: start_date,end_date=datetime(yr,7,1,0,0,0,tzinfo=timezone.utc),datetime(yr,9,monthrange(yr,9)[1],23,59,59,999999,tzinfo=timezone.utc)
+        else: start_date,end_date=datetime(yr,10,1,0,0,0,tzinfo=timezone.utc),datetime(yr,12,monthrange(yr,12)[1],23,59,59,999999,tzinfo=timezone.utc)
+    elif period_filter_str == 'current_year': yr=now.year; start_date,end_date=datetime(yr,1,1,0,0,0,tzinfo=timezone.utc),datetime(yr,12,monthrange(yr,12)[1],23,59,59,999999,tzinfo=timezone.utc)
+    elif '-' in period_filter_str and len(period_filter_str)==7:
+        try: y_s,m_s=period_filter_str.split('-'); yr=int(y_s); m_i=int(m_s)
+            if 1<=m_i<=12: start_date,end_date=datetime(yr,m_i,1,0,0,0,tzinfo=timezone.utc),datetime(yr,m_i,monthrange(yr,m_i)[1],23,59,59,999999,tzinfo=timezone.utc)
         except ValueError: pass
-    return start_date, end_date
+    return start_date,end_date
 
 def get_filtered_coachings_subquery(period_filter_str=None):
-    coachings_base_q = db.session.query(Coaching.id.label("coaching_id_sq"), Coaching.team_member_id.label("team_member_id_sq"), Coaching.performance_mark.label("performance_mark_sq"), Coaching.time_spent.label("time_spent_sq"), Coaching.coaching_subject.label("coaching_subject_sq"))
-    start_date, end_date = calculate_date_range(period_filter_str)
-    if start_date: coachings_base_q = coachings_base_q.filter(Coaching.coaching_date >= start_date)
-    if end_date: coachings_base_q = coachings_base_q.filter(Coaching.coaching_date <= end_date)
-    return coachings_base_q.subquery('filtered_coachings_sq')
+    q = db.session.query(Coaching.id.label("coaching_id_sq"),Coaching.team_member_id.label("team_member_id_sq"),Coaching.performance_mark.label("performance_mark_sq"),Coaching.time_spent.label("time_spent_sq"),Coaching.coaching_subject.label("coaching_subject_sq"))
+    s_d,e_d = calculate_date_range(period_filter_str)
+    if s_d: q=q.filter(Coaching.coaching_date>=s_d)
+    if e_d: q=q.filter(Coaching.coaching_date<=e_d)
+    return q.subquery('filtered_coachings_sq')
 
 def get_performance_data_for_charts(period_filter_str=None, selected_team_id_str=None):
-    filtered_coachings_sq = get_filtered_coachings_subquery(period_filter_str)
-    query = db.session.query(Team.id.label('team_id'), Team.name.label('team_name'), func.coalesce(func.avg(filtered_coachings_sq.c.performance_mark_sq),0).label('avg_performance_mark'), func.coalesce(func.sum(filtered_coachings_sq.c.time_spent_sq),0).label('total_time_spent'), func.coalesce(func.count(filtered_coachings_sq.c.coaching_id_sq),0).label('coachings_done')).select_from(Team).outerjoin(TeamMember, Team.id == TeamMember.team_id).outerjoin(filtered_coachings_sq, TeamMember.id == filtered_coachings_sq.c.team_member_id_sq)
-    if selected_team_id_str and selected_team_id_str.isdigit(): query = query.filter(Team.id == int(selected_team_id_str))
-    results = query.group_by(Team.id, Team.name).order_by(Team.name).all()
-    avg_perf_percent = [round(r.avg_performance_mark * 10, 2) if r.avg_performance_mark is not None else 0 for r in results]
-    return {'labels':[r.team_name for r in results], 'avg_performance_values':avg_perf_percent, 'avg_time_spent_values':[round(r.total_time_spent/r.coachings_done,2) if r.coachings_done > 0 else 0 for r in results], 'coachings_done_values':[r.coachings_done for r in results]}
+    sq=get_filtered_coachings_subquery(period_filter_str)
+    q=db.session.query(Team.id.label('team_id'),Team.name.label('team_name'),func.coalesce(func.avg(sq.c.performance_mark_sq),0).label('avg_perf_mark'),func.coalesce(func.sum(sq.c.time_spent_sq),0).label('total_time'),func.coalesce(func.count(sq.c.coaching_id_sq),0).label('num_coachings')).select_from(Team).outerjoin(TeamMember,Team.id==TeamMember.team_id).outerjoin(sq,TeamMember.id==sq.c.team_member_id_sq)
+    if selected_team_id_str and selected_team_id_str.isdigit(): q=q.filter(Team.id==int(selected_team_id_str))
+    res=q.group_by(Team.id,Team.name).order_by(Team.name).all()
+    avg_perf_pcnt=[round(r.avg_perf_mark*10,2) if r.avg_perf_mark is not None else 0 for r in res]
+    return {'labels':[r.team_name for r in res],'avg_performance_values':avg_perf_pcnt,'avg_time_spent_values':[round(r.total_time/r.num_coachings,2) if r.num_coachings>0 else 0 for r in res],'coachings_done_values':[r.num_coachings for r in res]}
 
 def get_coaching_subject_distribution(period_filter_str=None, selected_team_id_str=None):
-    filtered_coachings_sq = get_filtered_coachings_subquery(period_filter_str)
-    query = db.session.query(filtered_coachings_sq.c.coaching_subject_sq.label('coaching_subject'), func.count(filtered_coachings_sq.c.coaching_id_sq).label('count')).select_from(filtered_coachings_sq).filter(filtered_coachings_sq.c.coaching_subject_sq.isnot(None)).filter(filtered_coachings_sq.c.coaching_subject_sq != '')
-    if selected_team_id_str and selected_team_id_str.isdigit(): query = query.join(TeamMember, filtered_coachings_sq.c.team_member_id_sq == TeamMember.id).filter(TeamMember.team_id == int(selected_team_id_str))
-    results = query.group_by(filtered_coachings_sq.c.coaching_subject_sq).order_by(desc('count')).all()
-    return {'labels':[r.coaching_subject for r in results if r.coaching_subject], 'values':[r.count for r in results if r.coaching_subject]}
+    sq=get_filtered_coachings_subquery(period_filter_str)
+    q=db.session.query(sq.c.coaching_subject_sq.label('subject'),func.count(sq.c.coaching_id_sq).label('count')).select_from(sq).filter(sq.c.coaching_subject_sq.isnot(None)).filter(sq.c.coaching_subject_sq != '')
+    if selected_team_id_str and selected_team_id_str.isdigit(): q=q.join(TeamMember,sq.c.team_member_id_sq==TeamMember.id).filter(TeamMember.team_id==int(selected_team_id_str))
+    res=q.group_by(sq.c.coaching_subject_sq).order_by(desc('count')).all()
+    return {'labels':[r.subject for r in res if r.subject],'values':[r.count for r in res if r.subject]}
 
 @bp.route('/')
 @bp.route('/index')
 @login_required
 def index():
-    page = request.args.get('page', 1, type=int)
-    period_arg = request.args.get('period','all')
-    team_arg = request.args.get('team',"all")
-    search_arg = request.args.get('search',default="",type=str).strip()
-
-    # --- GLOBAL Summary Statistics for Top Boxes ---
-    global_summary_query = Coaching.query
-    global_start_dt, global_end_dt = calculate_date_range(period_arg) # Summary boxes respect period filter
-    if global_start_dt:
-        global_summary_query = global_summary_query.filter(Coaching.coaching_date >= global_start_dt)
-    if global_end_dt:
-        global_summary_query = global_summary_query.filter(Coaching.coaching_date <= global_end_dt)
-    
-    global_total_coachings_count = global_summary_query.count()
-    global_time_sum_obj = global_summary_query.with_entities(func.sum(Coaching.time_spent)).scalar()
-    global_time_sum = global_time_sum_obj if global_time_sum_obj is not None else 0
-    global_time_coached_display = f"{global_time_sum//60} Std. {global_time_sum%60} Min. ({global_time_sum} Min.)"
-
-    # --- FILTERED List of Coachings for the Table ---
-    coachings_list_query = Coaching.query.join(TeamMember,Coaching.team_member_id==TeamMember.id).join(User,Coaching.coach_id==User.id,isouter=True)
-    
-    # Apply period filter to the list
-    list_start_dt, list_end_dt = calculate_date_range(period_arg) # Can reuse the same dates
-    if list_start_dt: coachings_list_query = coachings_list_query.filter(Coaching.coaching_date >= list_start_dt)
-    if list_end_dt: coachings_list_query = coachings_list_query.filter(Coaching.coaching_date <= list_end_dt)
-    
-    # Apply role-specific and team filters to the list
-    if current_user.role == ROLE_TEAMLEITER:
-        if not current_user.team_id_if_leader: 
-            flash("Ihnen ist kein Team zugewiesen. Coaching-Liste leer.","warning")
-            coachings_list_query = coachings_list_query.filter(sqlalchemy.sql.false())
+    page=request.args.get('page',1,type=int); period_arg=request.args.get('period','all'); team_arg=request.args.get('team',"all"); search_arg=request.args.get('search',default="",type=str).strip()
+    global_q=Coaching.query; gs_d,ge_d=calculate_date_range(period_arg)
+    if gs_d: global_q=global_q.filter(Coaching.coaching_date>=gs_d)
+    if ge_d: global_q=global_q.filter(Coaching.coaching_date<=ge_d)
+    global_total_coachings=global_q.count(); global_time_obj=global_q.with_entities(func.sum(Coaching.time_spent)).scalar(); global_time=global_time_obj if global_time_obj else 0
+    global_time_display=f"{global_time//60} Std. {global_time%60} Min. ({global_time} Min.)"
+    list_q=Coaching.query.join(TeamMember,Coaching.team_member_id==TeamMember.id).join(User,Coaching.coach_id==User.id,isouter=True)
+    ls_d,le_d=calculate_date_range(period_arg)
+    if ls_d: list_q=list_q.filter(Coaching.coaching_date>=ls_d)
+    if le_d: list_q=list_q.filter(Coaching.coaching_date<=le_d)
+    if current_user.role==ROLE_TEAMLEITER:
+        if not current_user.team_id_if_leader: flash("Kein Team zugewiesen.","warning"); list_q=list_q.filter(sqlalchemy.sql.false())
         else:
-            tm_ids = [m.id for m in TeamMember.query.filter_by(team_id=current_user.team_id_if_leader).all()]
-            if not tm_ids: coachings_list_query = coachings_list_query.filter(Coaching.coach_id == current_user.id)
-            else: coachings_list_query = coachings_list_query.filter(or_(Coaching.team_member_id.in_(tm_ids), Coaching.coach_id == current_user.id))
-    elif team_arg and team_arg.isdigit(): # General team filter if not a Teamleiter viewing their own team
-        coachings_list_query = coachings_list_query.filter(TeamMember.team_id == int(team_arg))
-    
-    # Apply search filter to the list
-    if search_arg: 
-        coachings_list_query = coachings_list_query.filter(or_(TeamMember.name.ilike(f"%{search_arg}%"), User.username.ilike(f"%{search_arg}%"), Coaching.coaching_subject.ilike(f"%{search_arg}%")))
-    
-    total_coachings_in_filtered_list = coachings_list_query.count() # For "Gesamt gefiltert" in list title
-    coachings_page = coachings_list_query.order_by(desc(Coaching.coaching_date)).paginate(page=page,per_page=10,error_out=False)
+            tm_ids=[m.id for m in TeamMember.query.filter_by(team_id=current_user.team_id_if_leader).all()]
+            if not tm_ids: list_q=list_q.filter(Coaching.coach_id==current_user.id)
+            else: list_q=list_q.filter(or_(Coaching.team_member_id.in_(tm_ids),Coaching.coach_id==current_user.id))
+    elif team_arg and team_arg.isdigit(): list_q=list_q.filter(TeamMember.team_id==int(team_arg))
+    if search_arg: list_q=list_q.filter(or_(TeamMember.name.ilike(f"%{search_arg}%"),User.username.ilike(f"%{search_arg}%"),Coaching.coaching_subject.ilike(f"%{search_arg}%")))
+    total_filtered_list=list_q.count()
+    coachings_page=list_q.order_by(desc(Coaching.coaching_date)).paginate(page=page,per_page=10,error_out=False)
+    chart_perf=get_performance_data_for_charts(period_arg,team_arg); chart_subj=get_coaching_subject_distribution(period_arg,team_arg)
+    all_teams_dd=Team.query.order_by(Team.name).all()
+    now=datetime.now(timezone.utc); cy=now.year; py=cy-1; m_opts=[]
+    for m in range(12,0,-1): m_opts.append({'value':f"{py}-{m:02d}",'text':f"{get_month_name_german(m)} {py}"})
+    for m in range(now.month,0,-1): m_opts.append({'value':f"{cy}-{m:02d}",'text':f"{get_month_name_german(m)} {cy}"})
+    return render_template('main/index.html',title='Coaching Tracker Dashboard',coachings_paginated=coachings_page,total_coachings=total_filtered_list,chart_labels=chart_perf['labels'],chart_avg_performance_mark_percentage=chart_perf['avg_performance_values'],chart_avg_time_spent=chart_perf['avg_time_spent_values'],chart_coachings_done=chart_perf['coachings_done_values'],subject_chart_labels=chart_subj['labels'],subject_chart_values=chart_subj['values'],all_teams_for_filter=all_teams_dd,current_period_filter=period_arg,current_team_id_filter=team_arg,current_search_term=search_arg,global_total_coachings_count=global_total_coachings,global_time_coached_display=global_time_display,month_options=m_opts,config=current_app.config)
 
-    # Chart data (respects period and team filters from dropdowns)
-    charts_perf_data = get_performance_data_for_charts(period_arg,team_arg)
-    charts_subj_data = get_coaching_subject_distribution(period_arg,team_arg)
-    
-    all_teams_for_dropdown = Team.query.order_by(Team.name).all()
-    
-    # Month options for period filter dropdown
-    now = datetime.now(timezone.utc); curr_yr = now.year; prev_yr = curr_yr -1; months_opts = []
-    for m_val in range(12,0,-1): months_opts.append({'value':f"{prev_yr}-{m_val:02d}",'text':f"{get_month_name_german(m_val)} {prev_yr}"})
-    for m_val in range(now.month,0,-1): months_opts.append({'value':f"{curr_yr}-{m_val:02d}",'text':f"{get_month_name_german(m_val)} {curr_yr}"})
-    
-    return render_template('main/index.html',
-                           title='Coaching Tracker Dashboard',
-                           coachings_paginated=coachings_page,
-                           total_coachings=total_coachings_in_filtered_list, # For list title
-                           chart_labels=charts_perf_data['labels'],
-                           chart_avg_performance_mark_percentage=charts_perf_data['avg_performance_values'],
-                           chart_avg_time_spent=charts_perf_data['avg_time_spent_values'],
-                           chart_coachings_done=charts_perf_data['coachings_done_values'],
-                           subject_chart_labels=charts_subj_data['labels'],
-                           subject_chart_values=charts_subj_data['values'],
-                           all_teams_for_filter=all_teams_for_dropdown,
-                           current_period_filter=period_arg,
-                           current_team_id_filter=team_arg,
-                           current_search_term=search_arg,
-                           # Renamed your old total_filtered_coachings_count and time_coached_display to use global_
-                           global_total_coachings_count=global_total_coachings_count, # For top boxes
-                           global_time_coached_display=global_time_coached_display, # For top boxes
-                           month_options=months_opts,
-                           config=current_app.config)
-
-@bp.route('/team_view')
+@bp.route('/team_view', methods=['GET'])
 @login_required
 @role_required([ROLE_TEAMLEITER, ROLE_ADMIN, ROLE_PROJEKTLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER, ROLE_ABTEILUNGSLEITER])
 def team_view():
-    team, team_coachings, team_performance, view_team_id = None, [], [], request.args.get('team_id',type=int)
-    title_prefix = "Team Ansicht"
-    if current_user.role == ROLE_TEAMLEITER and not view_team_id:
-        if not current_user.team_id_if_leader: flash("Ihnen ist kein Team zugewiesen.","warning"); return redirect(url_for('main.index'))
-        team = Team.query.get(current_user.team_id_if_leader); title_prefix = "Mein Team" if team else title_prefix
-    elif view_team_id:
-        if current_user.role not in [ROLE_ADMIN, ROLE_PROJEKTLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER, ROLE_ABTEILUNGSLEITER]: abort(403)
-        team = Team.query.get(view_team_id)
-    else:
-        if current_user.role in [ROLE_ADMIN, ROLE_PROJEKTLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER, ROLE_ABTEILUNGSLEITER]: team = Team.query.first()
-        else: abort(403)
-    if not team: flash("Team nicht gefunden.","info"); all_teams_list = Team.query.order_by(Team.name).all() if current_user.role in [ROLE_ADMIN, ROLE_PROJEKTLEITER,ROLE_QM,ROLE_SALESCOACH,ROLE_TRAINER,ROLE_ABTEILUNGSLEITER] else []; return render_template('main/team_view.html',title='Team Ansicht',team=None,all_teams_list=all_teams_list,config=current_app.config)
-    if team:
-        member_ids = [m.id for m in team.members]; team_coachings = Coaching.query.filter(Coaching.team_member_id.in_(member_ids)).order_by(desc(Coaching.coaching_date)).limit(20).all()
-        for member in team.members:
-            m_coachings = Coaching.query.filter_by(team_member_id=member.id).all()
-            avg_score = sum(c.overall_score for c in m_coachings)/len(m_coachings) if m_coachings else 0
-            total_time = sum(c.time_spent for c in m_coachings if c.time_spent)
-            team_performance.append({'name':member.name,'avg_score':round(avg_score,2),'total_coachings':len(m_coachings),'total_coaching_time':total_time})
-    all_teams_dd = Team.query.order_by(Team.name).all() if current_user.role in [ROLE_ADMIN,ROLE_PROJEKTLEITER,ROLE_QM,ROLE_SALESCOACH,ROLE_TRAINER,ROLE_ABTEILUNGSLEITER] else []
-    return render_template('main/team_view.html',title=f"{title_prefix}: {team.name}" if team else title_prefix, team=team,team_coachings=team_coachings,team_members_performance=team_performance,all_teams_list=all_teams_dd,config=current_app.config)
+    selected_team_object = None
+    team_coachings_list_for_display = []
+    team_members_stats = []
+    
+    view_team_id_arg = request.args.get('team_id', type=int) # Get as int directly
+    page_title = "Team Ansicht"
+
+    # Determine which team to view
+    if current_user.role == ROLE_TEAMLEITER and not view_team_id_arg:
+        if not current_user.team_id_if_leader:
+            flash("Ihnen ist kein Team zugewiesen.", "warning")
+            return redirect(url_for('main.index'))
+        selected_team_object = Team.query.get(current_user.team_id_if_leader)
+        if selected_team_object:
+            page_title = f"Mein Team: {selected_team_object.name}"
+        else:
+            flash("Zugewiesenes Team nicht gefunden. Bitte kontaktieren Sie einen Administrator.", "danger")
+            return redirect(url_for('main.index'))
+    elif view_team_id_arg:
+        if current_user.role not in [ROLE_ADMIN, ROLE_PROJEKTLEITER, ROLE_ABTEILUNGSLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER]:
+            abort(403) 
+        selected_team_object = Team.query.get(view_team_id_arg)
+        if selected_team_object:
+            page_title = f"Team Ansicht: {selected_team_object.name}"
+    else: 
+        if current_user.role in [ROLE_ADMIN, ROLE_PROJEKTLEITER, ROLE_ABTEILUNGSLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER]:
+            selected_team_object = Team.query.order_by(Team.name).first()
+            if selected_team_object:
+                page_title = f"Team Ansicht: {selected_team_object.name}"
+        # If not a privileged role and no team_id_arg, and not a Teamleiter, they shouldn't reach here without a team_id.
+        # TeamLeiter case is handled. Other roles need a team_id or will see default/first or selection.
+
+    if not selected_team_object:
+        flash("Kein Team zum Anzeigen ausgewählt oder vorhanden.", "info")
+        all_teams_for_selection = []
+        if current_user.role in [ROLE_ADMIN, ROLE_PROJEKTLEITER, ROLE_ABTEILUNGSLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER]:
+            all_teams_for_selection = Team.query.order_by(Team.name).all()
+        return render_template('main/team_view.html', title="Team Auswählen", team=None, 
+                               all_teams_list=all_teams_for_selection, team_members_performance=[], team_coachings=[], 
+                               config=current_app.config)
+
+    # If a team is selected/determined:
+    team_member_ids_in_selected_team = [member.id for member in selected_team_object.members]
+    if team_member_ids_in_selected_team:
+        team_coachings_list_for_display = Coaching.query.filter(Coaching.team_member_id.in_(team_member_ids_in_selected_team))\
+                                            .order_by(desc(Coaching.coaching_date))\
+                                            .limit(10).all()
+
+    for member in selected_team_object.members:
+        member_coachings_list = Coaching.query.filter_by(team_member_id=member.id).all()
+        avg_score_val = sum(c.overall_score for c in member_coachings_list) / len(member_coachings_list) if member_coachings_list else 0
+        total_coaching_time_minutes_val = sum(c.time_spent for c in member_coachings_list if c.time_spent is not None)
+        
+        hours = total_coaching_time_minutes_val // 60
+        minutes = total_coaching_time_minutes_val % 60
+        formatted_time_str = f"{hours} Std. {minutes} Min."
+
+        team_members_stats.append({
+            'id': member.id,
+            'name': member.name,
+            'avg_score': round(avg_score_val, 2),
+            'total_coachings': len(member_coachings_list),
+            'raw_total_coaching_time': total_coaching_time_minutes_val, # Keep raw for potential future use
+            'formatted_total_coaching_time': formatted_time_str
+        })
+    
+    all_teams_for_dropdown = []
+    if current_user.role in [ROLE_ADMIN, ROLE_PROJEKTLEITER, ROLE_ABTEILUNGSLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER]:
+        all_teams_for_dropdown = Team.query.order_by(Team.name).all()
+    
+    return render_template('main/team_view.html',
+                           title=page_title,
+                           team=selected_team_object,
+                           team_coachings=team_coachings_list_for_display,
+                           team_members_performance=team_members_stats,
+                           all_teams_list=all_teams_for_dropdown,
+                           config=current_app.config)
 
 @bp.route('/coaching/add', methods=['GET', 'POST'])
 @login_required
@@ -211,17 +204,17 @@ def edit_coaching(coaching_id):
             db.session.commit(); flash('Coaching erfolgreich aktualisiert!', 'success')
             return redirect(request.args.get('next') or url_for('main.index'))
         except Exception as e: db.session.rollback(); current_app.logger.error(f"Update coaching ID {coaching_id} error: {e}"); flash(f'Fehler: {str(e)}', 'danger')
-    if request.method == 'GET' or not form.validate_on_submit():
+    if request.method == 'GET' or not form.validate_on_submit(): # Repopulate choices on GET or failed POST
         choices = []
         if form_user_role == ROLE_TEAMLEITER and form_user_team_id:
             for m in TeamMember.query.filter_by(team_id=form_user_team_id).order_by(TeamMember.name).all(): choices.append((m.id, m.name))
-        else:
-            for team in Team.query.order_by(Team.name).all():
-                for m in TeamMember.query.filter_by(team_id=team.id).order_by(TeamMember.name).all(): choices.append((m.id, f"{m.name} ({team.name})"))
+        else: # Admin or other roles that should see all
+            for team_for_choices in Team.query.order_by(Team.name).all():
+                for m in TeamMember.query.filter_by(team_id=team_for_choices.id).order_by(TeamMember.name).all(): choices.append((m.id, f"{m.name} ({team_for_choices.name})"))
         form.team_member_id.choices = choices if choices else []
-        form.team_member_id.data = coaching_to_edit.team_member_id
-    tcap_js="document.addEventListener('DOMContentLoaded',function(){var s=document.getElementById('coaching_style'),t=document.getElementById('tcap_id_field'),i=document.getElementById('tcap_id');function o(){if(s&&t&&i)if(s.value==='TCAP'){t.style.display='';i.required=!0}else{t.style.display='none';i.required=!1}}s&&t&&i&&(s.addEventListener('change',o),o())});"
-    return render_template('main/add_coaching.html',title=f'Coaching ID {coaching_to_edit.id} Bearbeiten',form=form,is_edit_mode=True,coaching_id_being_edited=coaching_to_edit.id,tcap_js=tcap_js,config=current_app.config)
+        form.team_member_id.data = coaching_to_edit.team_member_id # Ensure current value selected
+    tcap_js="document.addEventListener('DOMContentLoaded',function(){var s=document.getElementById('coaching_style'),t=document.getElementById('tcap_id_field'),i=document.getElementById('tcap_id');function o(){if(s&&t&&i)if(s.value==='TCAP'){t.style.display='';i.required=!0}else{t.style.display='none';i.required=!1}}s&&t&&i&&(s.addEventListener('change',o),o())});" # Removed i.value='' for edit
+    return render_template('main/add_coaching.html',title=f'Coaching ID {coaching_to_edit.id} Bearbeiten',form=form,is_edit_mode=True,coaching=coaching_to_edit, coaching_id_being_edited=coaching_to_edit.id,tcap_js=tcap_js,config=current_app.config)
 
 @bp.route('/coaching_review_dashboard', methods=['GET', 'POST'])
 @login_required
@@ -246,9 +239,9 @@ def pl_qm_dashboard():
             for f, errs in form_val.errors.items(): flash(f"Validierungsfehler '{form_val[f].label.text}': {'; '.join(errs)}", 'danger')
         return redirect(url_for('main.pl_qm_dashboard', page=request.args.get('page',1,type=int)))
     all_teams_data = []
-    for team_obj in Team.query.all():
-        stats = db.session.query(func.coalesce(func.avg(Coaching.performance_mark*10.0),0).label('avg_perf'), func.coalesce(func.sum(Coaching.time_spent),0).label('total_time'), func.coalesce(func.count(Coaching.id),0).label('num_coachings')).join(TeamMember, Coaching.team_member_id == TeamMember.id).filter(TeamMember.team_id == team_obj.id).first()
-        all_teams_data.append({'id':team_obj.id,'name':team_obj.name,'num_coachings':stats.num_coachings if stats else 0,'avg_score':round(stats.avg_perf,2) if stats else 0,'total_time':stats.total_time if stats else 0})
+    for team_obj_stat_loop in Team.query.all():
+        stats = db.session.query(func.coalesce(func.avg(Coaching.performance_mark*10.0),0).label('avg_perf'), func.coalesce(func.sum(Coaching.time_spent),0).label('total_time'), func.coalesce(func.count(Coaching.id),0).label('num_coachings')).join(TeamMember, Coaching.team_member_id == TeamMember.id).filter(TeamMember.team_id == team_obj_stat_loop.id).first()
+        all_teams_data.append({'id':team_obj_stat_loop.id,'name':team_obj_stat_loop.name,'num_coachings':stats.num_coachings if stats else 0,'avg_score':round(stats.avg_perf,2) if stats else 0,'total_time':stats.total_time if stats else 0})
     sorted_data = sorted(all_teams_data,key=lambda x:(x.get('avg_score',0),x.get('num_coachings',0)),reverse=True)
     top_3 = sorted_data[:3]; teams_c = [t for t in all_teams_data if t.get('num_coachings',0)>0]
     flop_3 = sorted(teams_c,key=lambda x:(x.get('avg_score',0),-x.get('num_coachings',0)))[:3] if teams_c else []
