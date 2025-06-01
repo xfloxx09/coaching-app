@@ -26,7 +26,7 @@ class RegistrationForm(FlaskForm):
         ('Projektleiter', 'AL/PL'),
         ('Admin', 'Admin'),
         ('Abteilungsleiter', 'Abteilungsleiter'),
-        ('Team-Manager', 'Team-Manager')
+        ('Team_Manager', 'Team-Manager')
     ], validators=[DataRequired("Rolle ist erforderlich.")])
     team_id = SelectField('Team (nur für Teamleiter)', coerce=int, option_widget=None, choices=[])
     submit = SubmitField('Benutzer registrieren/aktualisieren')
@@ -57,7 +57,7 @@ class TeamForm(FlaskForm):
 
     def __init__(self, *args, **kwargs):
         super(TeamForm, self).__init__(*args, **kwargs)
-        possible_leaders = User.query.filter(User.role.in_(['Teamleiter', 'Admin', 'Projektleiter'])).order_by(User.username).all()
+        possible_leaders = User.query.filter(User.role.in_(['Teamleiter', 'Admin', ''])).order_by(User.username).all()
         self.team_leader_id.choices = [(u.id, u.username) for u in possible_leaders]
         self.team_leader_id.choices.insert(0, (0, 'Kein Teamleiter ausgewählt'))
 
