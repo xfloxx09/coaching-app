@@ -35,5 +35,5 @@ ROLE_SALESCOACH = 'SalesCoach'
 ROLE_TRAINER = 'Trainer'
 ROLE_TEAMLEITER = 'Teamleiter'
 ROLE_ABTEILUNGSLEITER = 'Abteilungsleiter'
-ROLE_TEAM-MANAGER = 'Team-Manager'
+ROLE_TEAM_MANAGER = 'Team-Manager'
 # Teammitglied ist keine Rolle, die spezielle Rechte hat, sondern eher der Standard.
