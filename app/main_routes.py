@@ -12,7 +12,7 @@ from calendar import monthrange
 
 bp = Blueprint('main', __name__)
 
-# --- HILFSFUNKTIONEN (get_month_name_german, calculate_date_range, etc. as you provided) ---
+# --- HILFSFUNKTIONEN FÜR DATENAGGREGATION ---
 def get_month_name_german(month_number):
     months_german = {1:"Januar",2:"Februar",3:"März",4:"April",5:"Mai",6:"Juni",7:"Juli",8:"August",9:"September",10:"Oktober",11:"November",12:"Dezember"}
     return months_german.get(month_number, "")
@@ -30,10 +30,13 @@ def calculate_date_range(period_filter_str=None):
         else: start_date,end_date=datetime(yr,10,1,0,0,0,tzinfo=timezone.utc),datetime(yr,12,monthrange(yr,12)[1],23,59,59,999999,tzinfo=timezone.utc)
     elif period_filter_str == 'current_year': yr=now.year; start_date,end_date=datetime(yr,1,1,0,0,0,tzinfo=timezone.utc),datetime(yr,12,monthrange(yr,12)[1],23,59,59,999999,tzinfo=timezone.utc)
     elif '-' in period_filter_str and len(period_filter_str)==7:
-        try: y_s,m_s=period_filter_str.split('-'); yr=int(y_s); m_i=int(m_s)
-            if 1<=m_i<=12: start_date,end_date=datetime(yr,m_i,1,0,0,0,tzinfo=timezone.utc),datetime(yr,m_i,monthrange(yr,m_i)[1],23,59,59,999999,tzinfo=timezone.utc)
-       except ValueError: # <--- THIS LINE WAS MISSING/INCORRECTLY INDENTED
-            pass           # <--- THIS LINE WAS MISSING/INCORRECTLY INDENTED
+        try: # This try block was the source of the error due to missing except
+            y_s,m_s=period_filter_str.split('-'); yr=int(y_s); m_i=int(m_s)
+            if 1<=m_i<=12: 
+                start_date=datetime(yr,m_i,1,0,0,0,tzinfo=timezone.utc)
+                end_date=datetime(yr,m_i,monthrange(yr,m_i)[1],23,59,59,999999,tzinfo=timezone.utc)
+        except ValueError: # THIS WAS THE MISSING PART
+            pass           # Now the try block is complete
     return start_date,end_date
 
 def get_filtered_coachings_subquery(period_filter_str=None):
@@ -93,83 +96,42 @@ def index():
 @login_required
 @role_required([ROLE_TEAMLEITER, ROLE_ADMIN, ROLE_PROJEKTLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER, ROLE_ABTEILUNGSLEITER])
 def team_view():
-    selected_team_object = None
-    team_coachings_list_for_display = []
-    team_members_stats = []
-    
-    view_team_id_arg = request.args.get('team_id', type=int) # Get as int directly
+    selected_team_object = None; team_coachings_list_for_display = []; team_members_stats = []
+    view_team_id_arg = request.args.get('team_id', type=int)
     page_title = "Team Ansicht"
-
-    # Determine which team to view
     if current_user.role == ROLE_TEAMLEITER and not view_team_id_arg:
-        if not current_user.team_id_if_leader:
-            flash("Ihnen ist kein Team zugewiesen.", "warning")
-            return redirect(url_for('main.index'))
+        if not current_user.team_id_if_leader: flash("Ihnen ist kein Team zugewiesen.","warning"); return redirect(url_for('main.index'))
         selected_team_object = Team.query.get(current_user.team_id_if_leader)
-        if selected_team_object:
-            page_title = f"Mein Team: {selected_team_object.name}"
-        else:
-            flash("Zugewiesenes Team nicht gefunden. Bitte kontaktieren Sie einen Administrator.", "danger")
-            return redirect(url_for('main.index'))
+        if selected_team_object: page_title = f"Mein Team: {selected_team_object.name}"
+        else: flash("Zugewiesenes Team nicht gefunden.", "danger"); return redirect(url_for('main.index'))
     elif view_team_id_arg:
-        if current_user.role not in [ROLE_ADMIN, ROLE_PROJEKTLEITER, ROLE_ABTEILUNGSLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER]:
-            abort(403) 
+        if current_user.role not in [ROLE_ADMIN, ROLE_PROJEKTLEITER, ROLE_ABTEILUNGSLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER]: abort(403)
         selected_team_object = Team.query.get(view_team_id_arg)
-        if selected_team_object:
-            page_title = f"Team Ansicht: {selected_team_object.name}"
-    else: 
+        if selected_team_object: page_title = f"Team Ansicht: {selected_team_object.name}"
+    else:
         if current_user.role in [ROLE_ADMIN, ROLE_PROJEKTLEITER, ROLE_ABTEILUNGSLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER]:
             selected_team_object = Team.query.order_by(Team.name).first()
-            if selected_team_object:
-                page_title = f"Team Ansicht: {selected_team_object.name}"
-        # If not a privileged role and no team_id_arg, and not a Teamleiter, they shouldn't reach here without a team_id.
-        # TeamLeiter case is handled. Other roles need a team_id or will see default/first or selection.
-
+            if selected_team_object: page_title = f"Team Ansicht: {selected_team_object.name}"
     if not selected_team_object:
         flash("Kein Team zum Anzeigen ausgewählt oder vorhanden.", "info")
         all_teams_for_selection = []
         if current_user.role in [ROLE_ADMIN, ROLE_PROJEKTLEITER, ROLE_ABTEILUNGSLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER]:
             all_teams_for_selection = Team.query.order_by(Team.name).all()
-        return render_template('main/team_view.html', title="Team Auswählen", team=None, 
-                               all_teams_list=all_teams_for_selection, team_members_performance=[], team_coachings=[], 
-                               config=current_app.config)
-
-    # If a team is selected/determined:
+        return render_template('main/team_view.html', title="Team Auswählen", team=None, all_teams_list=all_teams_for_selection, team_members_performance=[], team_coachings=[], config=current_app.config)
     team_member_ids_in_selected_team = [member.id for member in selected_team_object.members]
     if team_member_ids_in_selected_team:
-        team_coachings_list_for_display = Coaching.query.filter(Coaching.team_member_id.in_(team_member_ids_in_selected_team))\
-                                            .order_by(desc(Coaching.coaching_date))\
-                                            .limit(10).all()
-
+        team_coachings_list_for_display = Coaching.query.filter(Coaching.team_member_id.in_(team_member_ids_in_selected_team)).order_by(desc(Coaching.coaching_date)).limit(10).all()
     for member in selected_team_object.members:
         member_coachings_list = Coaching.query.filter_by(team_member_id=member.id).all()
         avg_score_val = sum(c.overall_score for c in member_coachings_list) / len(member_coachings_list) if member_coachings_list else 0
         total_coaching_time_minutes_val = sum(c.time_spent for c in member_coachings_list if c.time_spent is not None)
-        
-        hours = total_coaching_time_minutes_val // 60
-        minutes = total_coaching_time_minutes_val % 60
+        hours = total_coaching_time_minutes_val // 60; minutes = total_coaching_time_minutes_val % 60
         formatted_time_str = f"{hours} Std. {minutes} Min."
-
-        team_members_stats.append({
-            'id': member.id,
-            'name': member.name,
-            'avg_score': round(avg_score_val, 2),
-            'total_coachings': len(member_coachings_list),
-            'raw_total_coaching_time': total_coaching_time_minutes_val, # Keep raw for potential future use
-            'formatted_total_coaching_time': formatted_time_str
-        })
-    
+        team_members_stats.append({'id': member.id, 'name': member.name, 'avg_score': round(avg_score_val, 2), 'total_coachings': len(member_coachings_list), 'raw_total_coaching_time': total_coaching_time_minutes_val, 'formatted_total_coaching_time': formatted_time_str})
     all_teams_for_dropdown = []
     if current_user.role in [ROLE_ADMIN, ROLE_PROJEKTLEITER, ROLE_ABTEILUNGSLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER]:
         all_teams_for_dropdown = Team.query.order_by(Team.name).all()
-    
-    return render_template('main/team_view.html',
-                           title=page_title,
-                           team=selected_team_object,
-                           team_coachings=team_coachings_list_for_display,
-                           team_members_performance=team_members_stats,
-                           all_teams_list=all_teams_for_dropdown,
-                           config=current_app.config)
+    return render_template('main/team_view.html', title=page_title, team=selected_team_object, team_coachings=team_coachings_list_for_display, team_members_performance=team_members_stats, all_teams_list=all_teams_for_dropdown, config=current_app.config)
 
 @bp.route('/coaching/add', methods=['GET', 'POST'])
 @login_required
