@@ -25,8 +25,7 @@ class RegistrationForm(FlaskForm):
         ('Trainer', 'Trainer'),
         ('Projektleiter', 'AL/PL'),
         ('Admin', 'Admin'),
-        ('Abteilungsleiter', 'Abteilungsleiter'),
-        ('Team_Manager', 'Team-Manager')
+        ('Abteilungsleiter', 'Abteilungsleiter')
     ], validators=[DataRequired("Rolle ist erforderlich.")])
     team_id = SelectField('Team (nur für Teamleiter)', coerce=int, option_widget=None, choices=[])
     submit = SubmitField('Benutzer registrieren/aktualisieren')
