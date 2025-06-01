@@ -4,7 +4,7 @@ from flask_login import login_required, current_user
 from app import db
 from app.models import User, Team, TeamMember, Coaching
 from app.forms import CoachingForm, ProjectLeaderNoteForm
-from app.utils import role_required, ROLE_ADMIN, ROLE_PROJEKTLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER, ROLE_TEAMLEITER, ROLE_ABTEILUNGSLEITER, ROLE_TEAM-MANAGER
+from app.utils import role_required, ROLE_ADMIN, ROLE_PROJEKTLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER, ROLE_TEAMLEITER, ROLE_ABTEILUNGSLEITER, ROLE_TEAM_MANAGER
 from sqlalchemy import desc, func, or_, and_
 from datetime import datetime, timedelta, timezone
 import sqlalchemy
@@ -215,7 +215,7 @@ def index():
 
 @bp.route('/team_view')
 @login_required
-@role_required([ROLE_TEAMLEITER, ROLE_ADMIN, ROLE_PROJEKTLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER, ROLE_ABTEILUNGSLEITER, ROLE_TEAM-MANAGER])
+@role_required([ROLE_TEAMLEITER, ROLE_ADMIN, ROLE_PROJEKTLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER, ROLE_ABTEILUNGSLEITER, ROLE_TEAM_MANAGER])
 def team_view():
     team, team_coachings_list, team_members_performance, view_team_id = None, [], [], request.args.get('team_id', type=int)
     page_title_prefix = "Team Ansicht"
@@ -224,14 +224,14 @@ def team_view():
         team = Team.query.get(current_user.team_id_if_leader)
         if team: page_title_prefix = "Mein Team"
     elif view_team_id:
-        if current_user.role not in [ROLE_ADMIN, ROLE_PROJEKTLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER, ROLE_ABTEILUNGSLEITER, ROLE_TEAM-MANAGER]: abort(403)
+        if current_user.role not in [ROLE_ADMIN, ROLE_PROJEKTLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER, ROLE_ABTEILUNGSLEITER, ROLE_TEAM_MANAGER]: abort(403)
         team = Team.query.get(view_team_id)
     else:
-        if current_user.role in [ROLE_ADMIN, ROLE_PROJEKTLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER, ROLE_ABTEILUNGSLEITER, ROLE_TEAM-MANAGER]: team = Team.query.first()
+        if current_user.role in [ROLE_ADMIN, ROLE_PROJEKTLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER, ROLE_ABTEILUNGSLEITER, ROLE_TEAM_MANAGER]: team = Team.query.first()
         else: abort(403)
     if not team:
         flash("Team nicht gefunden oder keine Teams im System vorhanden.", "info")
-        all_teams_list = Team.query.order_by(Team.name).all() if current_user.role in [ROLE_ADMIN, ROLE_PROJEKTLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER, ROLE_ABTEILUNGSLEITER, ROLE_TEAM-MANAGER] else []
+        all_teams_list = Team.query.order_by(Team.name).all() if current_user.role in [ROLE_ADMIN, ROLE_PROJEKTLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER, ROLE_ABTEILUNGSLEITER, ROLE_TEAM_MANAGER] else []
         return render_template('main/team_view.html', title='Team Ansicht', team=None, all_teams_list=all_teams_list, config=current_app.config)
     if team:
         team_member_ids = [member.id for member in team.members]
@@ -246,7 +246,7 @@ def team_view():
 
 @bp.route('/coaching/add', methods=['GET', 'POST'])
 @login_required
-@role_required([ROLE_TEAMLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER, ROLE_ADMIN, ROLE_TEAM-MANAGER])
+@role_required([ROLE_TEAMLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER, ROLE_ADMIN, ROLE_TEAM_MANAGER])
 def add_coaching():
     user_team_id_for_form = current_user.team_id_if_leader if current_user.role == ROLE_TEAMLEITER else None
     form = CoachingForm(current_user_role=current_user.role, current_user_team_id=user_team_id_for_form)
@@ -289,7 +289,7 @@ def add_coaching():
 
 @bp.route('/coaching_review_dashboard', methods=['GET', 'POST'])
 @login_required
-@role_required([ROLE_PROJEKTLEITER, ROLE_QM, ROLE_ABTEILUNGSLEITER, ROLE_TEAM-MANAGER])
+@role_required([ROLE_PROJEKTLEITER, ROLE_QM, ROLE_ABTEILUNGSLEITER, ROLE_TEAM_MANAGER])
 def pl_qm_dashboard():
     page = request.args.get('page', 1, type=int)
     coachings_query = Coaching.query.order_by(desc(Coaching.coaching_date))
