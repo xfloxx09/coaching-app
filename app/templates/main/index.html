@@ -66,22 +66,23 @@
         </div>
     </form>
 
+    {# INFO-BOXES - UPDATED TO USE GLOBAL STATS #}
     <div class="row mb-4">
         <div class="col-md-6 mb-3">
             <div class="card text-white telekom-bg-magenta info-box h-100">
                 <div class="card-body text-center d-flex flex-column justify-content-center">
-                    <h5 class="card-title">Coaching Sessions</h5>
-                    <p class="card-text display-4">{{ total_filtered_coachings_count }}</p>
-                    <small>(gefiltert)</small>
+                    <h5 class="card-title">Coaching Sessions (Gesamt)</h5>
+                    <p class="card-text display-4">{{ global_total_coachings_count }}</p> {# CHANGED #}
+                    <small>(im ausgewählten Zeitraum)</small>
                 </div>
             </div>
         </div>
         <div class="col-md-6 mb-3">
             <div class="card text-white telekom-bg-magenta info-box h-100">
                 <div class="card-body text-center d-flex flex-column justify-content-center">
-                    <h5 class="card-title">Stunden gecoacht</h5>
-                    <p class="card-text display-4">{{ time_coached_display.split('(')[0].strip() if time_coached_display else '0 Std. 0 Min.' }}</p> 
-                    <small>({{ time_coached_display.split('(')[1].split(')')[0] if time_coached_display and '(' in time_coached_display else '0 Min.' }} gesamt)</small>
+                    <h5 class="card-title">Stunden gecoacht (Gesamt)</h5>
+                    <p class="card-text display-4">{{ global_time_coached_display.split('(')[0].strip() if global_time_coached_display else '0 Std. 0 Min.' }}</p> {# CHANGED #}
+                    <small>({{ global_time_coached_display.split('(')[1].split(')')[0] if global_time_coached_display and '(' in global_time_coached_display else '0 Min.' }} gesamt)</small>
                 </div>
             </div>
         </div>
@@ -128,6 +129,7 @@
 
     <div class="row mt-3 mb-2 align-items-center">
         <div class="col-md-7 col-lg-8">
+            {# This total_coachings now refers to total_coachings_in_filtered_list from the route #}
             <h3 class="mb-0">Coaching Liste (Angezeigt: {{ coachings_paginated.items|length if coachings_paginated and coachings_paginated.items else 0 }}, Gesamt gefiltert: {{ total_coachings if total_coachings is not none else 0 }})</h3>
         </div>
         <div class="col-md-5 col-lg-4">
@@ -164,7 +166,7 @@
                         <th>Score (%)</th>
                         <th>Bemerkung</th>
                         <th>Details</th>
-                        <th>Bearbeiten</th> {# NEW HEADER #}
+                        <th>Aktionen</th> 
                     </tr>
                 </thead>
                 <tbody>
@@ -197,7 +199,6 @@
                                 Details
                             </button>
                         </td>
-                        {# NEW CELL FOR ACTIONS #}
                         <td>
                             {% if current_user.id == coaching.coach_id or current_user.role == config.ROLE_ADMIN %}
                             <a href="{{ url_for('main.edit_coaching', coaching_id=coaching.id, next=request.url) }}" 
@@ -208,7 +209,7 @@
                         </td>
                     </tr>
                     <tr class="collapse" id="coachingDetails{{ coaching.id }}">
-                        <td colspan="12"> {# Adjusted colspan for the new Aktionen column #}
+                        <td colspan="12"> 
                             <div class="card card-body">
                                 <strong>Stil:</strong> {{ coaching.coaching_style if coaching.coaching_style else '-'}} 
                                 {% if coaching.coaching_style == 'TCAP' and coaching.tcap_id %}
@@ -265,10 +266,7 @@
         <p class="text-center mt-3">Keine Coachings gefunden, die den aktuellen Filtern entsprechen.</p>
     {% endif %} 
 
-    {# Conditional link to add new coaching - ensure ROLE_ADMIN is available or use string #}
     {% set can_add_coaching_roles = [config.ROLE_TEAMLEITER, config.ROLE_QM, config.ROLE_SALESCOACH, config.ROLE_TRAINER, config.ROLE_ADMIN] %}
-    {# Fallback if config.ROLE_ constants are not easily available in this template's direct context #}
-    {# {% set can_add_coaching_roles = ['Teamleiter', 'Qualitätsmanager', 'SalesCoach', 'Trainer', 'Admin'] %} #}
     {% if current_user.role in can_add_coaching_roles %}
     <a href="{{ url_for('main.add_coaching') }}" class="btn telekom-button mt-3">Neues Coaching hinzufügen</a>
     {% endif %} 
