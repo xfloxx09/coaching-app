@@ -18,13 +18,13 @@
             <ul class="navbar-nav mr-auto">
                 {% if current_user.is_authenticated %}
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('main.index') }}">Dashboard</a></li>
-                    {% if current_user.role in ['Teamleiter', 'Qualitätsmanager', 'SalesCoach', 'Trainer', 'Admin', 'Team_Manager'] %}
+                    {% if current_user.role in ['Teamleiter', 'Qualitätsmanager', 'SalesCoach', 'Trainer', 'Admin'] %}
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('main.add_coaching') }}">Coaching hinzufügen</a></li>
                     {% endif %}
                     {% if current_user.role == 'Teamleiter' and current_user.team_id_if_leader %}
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('main.team_view') }}">Mein Team</a></li>
                     {% endif %}
-                    {% if current_user.role in ['Projektleiter', 'Qualitätsmanager', 'Abteilungsleiter', 'Team_Manager'] %} 
+                    {% if current_user.role in ['Projektleiter', 'Qualitätsmanager', 'Abteilungsleiter'] %} 
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('main.pl_qm_dashboard') }}">Notizen</a></li> 
                     {% endif %}
                     {% if current_user.role == 'Admin' %}
