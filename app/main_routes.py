@@ -296,7 +296,7 @@ def pl_qm_dashboard():
     coachings_paginated = coachings_query.paginate(page=page, per_page=10, error_out=False)
     
     note_form_display = ProjectLeaderNoteForm()
-    dashboard_title = "Qualitätscoach Dashboard" if current_user.role == ROLE_QM else "AL/PL Dashboard"
+    dashboard_title = "Qualitätsmanager Dashboard" if current_user.role == ROLE_QM else "AL/PL Dashboard"
 
     if request.method == 'POST' and 'submit_note' in request.form:
         form_for_validation = ProjectLeaderNoteForm(request.form) 
