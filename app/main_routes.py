@@ -1,5 +1,5 @@
 # app/main_routes.py
-from flask import Blueprint, render_template, redirect, url_for, flash, request, abort
+from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, current_app
 from flask_login import login_required, current_user
 from app import db
 from app.models import User, Team, TeamMember, Coaching
@@ -9,16 +9,28 @@ from sqlalchemy import desc, func, or_, and_
 from datetime import datetime, timedelta, timezone
 import sqlalchemy
 from calendar import monthrange
+# import calendar # Not strictly needed if using get_month_name_german helper
 
 bp = Blueprint('main', __name__)
 
 # --- HILFSFUNKTIONEN FÜR DATENAGGREGATION ---
 
+def get_month_name_german(month_number):
+    # Simple mapping for German month names
+    months_german = {
+        1: "Januar", 2: "Februar", 3: "März", 4: "April", 5: "Mai", 6: "Juni",
+        7: "Juli", 8: "August", 9: "September", 10: "Oktober", 11: "November", 12: "Dezember"
+    }
+    return months_german.get(month_number, "")
+
+
 def calculate_date_range(period_filter_str=None):
     now = datetime.now(timezone.utc)
     start_date, end_date = None, None
+    
     if not period_filter_str or period_filter_str == 'all':
         return None, None
+
     if period_filter_str == '7days':
         start_date = (now - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0)
         end_date = now.replace(hour=23, minute=59, second=59, microsecond=999999)
@@ -26,14 +38,35 @@ def calculate_date_range(period_filter_str=None):
         start_date = (now - timedelta(days=29)).replace(hour=0, minute=0, second=0, microsecond=0)
         end_date = now.replace(hour=23, minute=59, second=59, microsecond=999999)
     elif period_filter_str == 'current_quarter':
-        current_month = now.month; year = now.year
-        if 1 <= current_month <= 3: start_date, end_date = datetime(year,1,1,0,0,0,tzinfo=timezone.utc), datetime(year,3,monthrange(year,3)[1],23,59,59,999999,tzinfo=timezone.utc)
-        elif 4 <= current_month <= 6: start_date, end_date = datetime(year,4,1,0,0,0,tzinfo=timezone.utc), datetime(year,6,monthrange(year,6)[1],23,59,59,999999,tzinfo=timezone.utc)
-        elif 7 <= current_month <= 9: start_date, end_date = datetime(year,7,1,0,0,0,tzinfo=timezone.utc), datetime(year,9,monthrange(year,9)[1],23,59,59,999999,tzinfo=timezone.utc)
-        else: start_date, end_date = datetime(year,10,1,0,0,0,tzinfo=timezone.utc), datetime(year,12,monthrange(year,12)[1],23,59,59,999999,tzinfo=timezone.utc)
+        current_month_num = now.month
+        year = now.year
+        if 1 <= current_month_num <= 3:
+            start_date = datetime(year, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+            end_date = datetime(year, 3, monthrange(year, 3)[1], 23, 59, 59, 999999, tzinfo=timezone.utc)
+        elif 4 <= current_month_num <= 6:
+            start_date = datetime(year, 4, 1, 0, 0, 0, tzinfo=timezone.utc)
+            end_date = datetime(year, 6, monthrange(year, 6)[1], 23, 59, 59, 999999, tzinfo=timezone.utc)
+        elif 7 <= current_month_num <= 9:
+            start_date = datetime(year, 7, 1, 0, 0, 0, tzinfo=timezone.utc)
+            end_date = datetime(year, 9, monthrange(year, 9)[1], 23, 59, 59, 999999, tzinfo=timezone.utc)
+        else:  # 10 <= current_month <= 12
+            start_date = datetime(year, 10, 1, 0, 0, 0, tzinfo=timezone.utc)
+            end_date = datetime(year, 12, monthrange(year, 12)[1], 23, 59, 59, 999999, tzinfo=timezone.utc)
     elif period_filter_str == 'current_year':
         year = now.year
-        start_date, end_date = datetime(year,1,1,0,0,0,tzinfo=timezone.utc), datetime(year,12,monthrange(year,12)[1],23,59,59,999999,tzinfo=timezone.utc)
+        start_date = datetime(year, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+        end_date = datetime(year, 12, monthrange(year, 12)[1], 23, 59, 59, 999999, tzinfo=timezone.utc)
+    elif '-' in period_filter_str and len(period_filter_str) == 7: # e.g., "2023-01"
+        try:
+            year_str, month_str = period_filter_str.split('-')
+            year = int(year_str)
+            month_int = int(month_str) # Renamed to avoid conflict
+            if 1 <= month_int <= 12:
+                start_date = datetime(year, month_int, 1, 0, 0, 0, tzinfo=timezone.utc)
+                end_date = datetime(year, month_int, monthrange(year, month_int)[1], 23, 59, 59, 999999, tzinfo=timezone.utc)
+        except ValueError:
+            pass # Invalid format, ignore or log
+            
     return start_date, end_date
 
 def get_filtered_coachings_subquery(period_filter_str=None):
@@ -56,7 +89,7 @@ def get_performance_data_for_charts(period_filter_str=None, selected_team_id_str
     filtered_coachings_sq = get_filtered_coachings_subquery(period_filter_str)
     query = db.session.query(
         Team.id.label('team_id'), Team.name.label('team_name'),
-        func.coalesce(func.avg(filtered_coachings_sq.c.performance_mark_sq), 0).label('avg_performance_mark'), # Changed from * 10.0 if performance_mark is 0-10
+        func.coalesce(func.avg(filtered_coachings_sq.c.performance_mark_sq), 0).label('avg_performance_mark'),
         func.coalesce(func.sum(filtered_coachings_sq.c.time_spent_sq), 0).label('total_time_spent'),
         func.coalesce(func.count(filtered_coachings_sq.c.coaching_id_sq), 0).label('coachings_done')
     ).select_from(Team)\
@@ -65,7 +98,6 @@ def get_performance_data_for_charts(period_filter_str=None, selected_team_id_str
     if selected_team_id_str and selected_team_id_str.isdigit():
         query = query.filter(Team.id == int(selected_team_id_str))
     results = query.group_by(Team.id, Team.name).order_by(Team.name).all()
-    # Convert performance_mark (0-10) to percentage for chart
     avg_performance_percentage = [round(r.avg_performance_mark * 10, 2) if r.avg_performance_mark is not None else 0 for r in results]
     return {'labels': [r.team_name for r in results],
             'avg_performance_values': avg_performance_percentage,
@@ -80,13 +112,14 @@ def get_coaching_subject_distribution(period_filter_str=None, selected_team_id_s
         func.count(filtered_coachings_sq.c.coaching_id_sq).label('count')
     ).select_from(filtered_coachings_sq)\
      .filter(filtered_coachings_sq.c.coaching_subject_sq.isnot(None)) \
-     .filter(filtered_coachings_sq.c.coaching_subject_sq != '') # Ensure empty strings are not counted
+     .filter(filtered_coachings_sq.c.coaching_subject_sq != '')
 
     if selected_team_id_str and selected_team_id_str.isdigit():
         query = query.join(TeamMember, filtered_coachings_sq.c.team_member_id_sq == TeamMember.id)\
                      .filter(TeamMember.team_id == int(selected_team_id_str))
     results = query.group_by(filtered_coachings_sq.c.coaching_subject_sq).order_by(desc('count')).all()
     return {'labels': [r.coaching_subject for r in results if r.coaching_subject], 'values': [r.count for r in results if r.coaching_subject]}
+
 
 @bp.route('/')
 @bp.route('/index')
@@ -145,22 +178,49 @@ def index():
 
     hours_coached = total_filtered_time_minutes // 60
     minutes_coached_remainder = total_filtered_time_minutes % 60
-    time_coached_display_for_summary = f"{hours_coached} Std. {minutes_coached_remainder} Min. ({total_filtered_time_minutes} Min.)" # Corrected for display
+    time_coached_display_for_summary = f"{hours_coached} Std. {minutes_coached_remainder} Min. ({total_filtered_time_minutes} Min.)"
 
     coachings_paginated = coachings_list_query.order_by(desc(Coaching.coaching_date))\
         .paginate(page=page, per_page=10, error_out=False)
 
-    chart_data = get_performance_data_for_charts(period_filter_arg, team_filter_arg) # Charts use period and team only
-    subject_distribution_data = get_coaching_subject_distribution(period_filter_arg, team_filter_arg) # Charts use period and team only
+    chart_data = get_performance_data_for_charts(period_filter_arg, team_filter_arg)
+    subject_distribution_data = get_coaching_subject_distribution(period_filter_arg, team_filter_arg)
 
     all_teams_for_filter_dropdown = Team.query.order_by(Team.name).all()
 
+    now_dt = datetime.now(timezone.utc) # Renamed to avoid conflict
+    current_year_val = now_dt.year # Renamed
+    previous_year_val = current_year_val - 1 # Renamed
+    month_options = []
+    
+    # Previous year months (descending order for better UI if many months shown)
+    for month_num_val in range(12, 0, -1): # Renamed
+        month_options.append({
+            'value': f"{previous_year_val}-{month_num_val:02d}",
+            'text': f"{get_month_name_german(month_num_val)} {previous_year_val}"
+        })
+    # Current year months (descending order, up to current month)
+    for month_num_val in range(now_dt.month, 0, -1): # Renamed
+        month_options.append({
+            'value': f"{current_year_val}-{month_num_val:02d}",
+            'text': f"{get_month_name_german(month_num_val)} {current_year_val}"
+        })
+    # If you want all months of current year regardless of current date:
+    # for month_num_val in range(12, 0, -1):
+    #     month_options.append({
+    #         'value': f"{current_year_val}-{month_num_val:02d}",
+    #         'text': f"{get_month_name_german(month_num_val)} {current_year_val}"
+    #     })
+    # And then reverse the whole list if you prefer chronological:
+    # month_options.reverse()
+
+
     return render_template('main/index.html',
-                           title='Coaching Tracker Dashboard', # More generic title
+                           title='Coaching Tracker Dashboard',
                            coachings_paginated=coachings_paginated,
-                           total_coachings=total_coachings_after_all_filters, # Used for "Gesamt gefiltert:"
+                           total_coachings=total_coachings_after_all_filters,
                            chart_labels=chart_data['labels'],
-                           chart_avg_performance_mark_percentage=chart_data['avg_performance_values'], # Already %
+                           chart_avg_performance_mark_percentage=chart_data['avg_performance_values'],
                            chart_avg_time_spent=chart_data['avg_time_spent_values'],
                            chart_coachings_done=chart_data['coachings_done_values'],
                            subject_chart_labels=subject_distribution_data['labels'],
@@ -169,13 +229,13 @@ def index():
                            current_period_filter=period_filter_arg,
                            current_team_id_filter=team_filter_arg,
                            current_search_term=search_term,
-                           total_filtered_coachings_count=total_coachings_after_all_filters, # For summary boxes
-                           time_coached_display=time_coached_display_for_summary # For summary boxes
+                           total_filtered_coachings_count=total_coachings_after_all_filters,
+                           time_coached_display=time_coached_display_for_summary,
+                           month_options=month_options,
+                           config=current_app.config
                            )
 
 
-# ... (rest of your main_routes.py: team_view, add_coaching, pl_qm_dashboard should remain unchanged) ...
-# (make sure they are included here in the actual file)
 @bp.route('/team_view')
 @login_required
 @role_required([ROLE_TEAMLEITER, ROLE_ADMIN, ROLE_PROJEKTLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER])
@@ -195,7 +255,7 @@ def team_view():
     if not team:
         flash("Team nicht gefunden oder keine Teams im System vorhanden.", "info")
         all_teams_list = Team.query.order_by(Team.name).all() if current_user.role in [ROLE_ADMIN, ROLE_PROJEKTLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER] else []
-        return render_template('main/team_view.html', title='Team Ansicht', team=None, all_teams_list=all_teams_list)
+        return render_template('main/team_view.html', title='Team Ansicht', team=None, all_teams_list=all_teams_list, config=current_app.config)
     if team:
         team_member_ids = [member.id for member in team.members]
         team_coachings_list = Coaching.query.filter(Coaching.team_member_id.in_(team_member_ids)).order_by(desc(Coaching.coaching_date)).limit(20).all()
@@ -205,7 +265,7 @@ def team_view():
             total_time = sum(c.time_spent for c in member_coachings if c.time_spent is not None)
             team_members_performance.append({'name': member.name, 'avg_score': round(avg_score, 2),'total_coachings': len(member_coachings), 'total_coaching_time': total_time})
     all_teams_list = Team.query.order_by(Team.name).all() if current_user.role in [ROLE_ADMIN, ROLE_PROJEKTLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER] else []
-    return render_template('main/team_view.html', title=f"{page_title_prefix}: {team.name}" if team else page_title_prefix, team=team, team_coachings=team_coachings_list, team_members_performance=team_members_performance, all_teams_list=all_teams_list)
+    return render_template('main/team_view.html', title=f"{page_title_prefix}: {team.name}" if team else page_title_prefix, team=team, team_coachings=team_coachings_list, team_members_performance=team_members_performance, all_teams_list=all_teams_list, config=current_app.config)
 
 @bp.route('/coaching/add', methods=['GET', 'POST'])
 @login_required
@@ -248,7 +308,7 @@ def add_coaching():
         }
     });
     """
-    return render_template('main/add_coaching.html', title='Coaching hinzufügen', form=form, tcap_js=tcap_js)
+    return render_template('main/add_coaching.html', title='Coaching hinzufügen', form=form, tcap_js=tcap_js, config=current_app.config)
 
 @bp.route('/coaching_review_dashboard', methods=['GET', 'POST'])
 @login_required
@@ -281,4 +341,4 @@ def pl_qm_dashboard():
         all_teams_data.append({'id': team_obj.id, 'name': team_obj.name, 'num_coachings': (team_stats.num_coachings or 0) if team_stats else 0, 'avg_score': round(team_stats.avg_perf or 0, 2) if team_stats else 0, 'total_time': (team_stats.total_time or 0) if team_stats else 0})
     sorted_teams = sorted(all_teams_data, key=lambda x: (x['avg_score'], x['num_coachings']), reverse=True)
     top_3_teams, flop_3_teams = sorted_teams[:3], sorted([t for t in all_teams_data if t['num_coachings'] > 0], key=lambda x: (x['avg_score'], -x['num_coachings']))[:3] if any(t['num_coachings'] > 0 for t in all_teams_data) else []
-    return render_template('main/projektleiter_dashboard.html', title=dashboard_title, coachings_paginated=coachings_paginated, note_form=note_form_display,top_3_teams=top_3_teams, flop_3_teams=flop_3_teams)
+    return render_template('main/projektleiter_dashboard.html', title=dashboard_title, coachings_paginated=coachings_paginated, note_form=note_form_display,top_3_teams=top_3_teams, flop_3_teams=flop_3_teams, config=current_app.config)
