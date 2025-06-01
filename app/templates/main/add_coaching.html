@@ -1,126 +1,139 @@
 {% extends "base.html" %}
+{# Assuming you don't have _form_helpers.html, rendering fields manually based on your provided structure #}
 
 {% block content %}
-<h2>{{ title }}</h2>
-<form method="POST" action="{{ url_for('main.add_coaching') }}" novalidate>
-    {{ form.hidden_tag() }}
+<div class="container">
+    {# Title changes based on mode #}
+    <h2>{{ title if title else ('Coaching Bearbeiten' if is_edit_mode else 'Coaching Hinzufügen') }}</h2>
 
-    <div class="form-row">
-        <div class="form-group col-md-4">
-            {{ form.team_member_id.label(class="form-control-label") }}
-            {{ form.team_member_id(class="form-control " + ("is-invalid" if form.team_member_id.errors else "")) }}
-            {% if form.team_member_id.errors %}
-                <div class="invalid-feedback">
-                    {% for error in form.team_member_id.errors %}<span>{{ error }}</span>{% endfor %}
-                </div>
-            {% endif %}
-        </div>
-        <div class="form-group col-md-4">
-            {{ form.coaching_style.label(class="form-control-label") }}
-            {{ form.coaching_style(class="form-control " + ("is-invalid" if form.coaching_style.errors else "")) }}
-            {% if form.coaching_style.errors %}
-                <div class="invalid-feedback">
-                    {% for error in form.coaching_style.errors %}<span>{{ error }}</span>{% endfor %}
-                </div>
-            {% endif %}
-        </div>
-        <div class="form-group col-md-4">
-            {{ form.coaching_subject.label(class="form-control-label") }}
-            {{ form.coaching_subject(class="form-control custom-select " + ("is-invalid" if form.coaching_subject.errors else "")) }}
-            {% if form.coaching_subject.errors %}
-                <div class="invalid-feedback">
-                    {% for error in form.coaching_subject.errors %}<span>{{ error }}</span>{% endfor %}
-                </div>
-            {% endif %}
-        </div>
-    </div>
-    
-    <div class="form-group" id="tcap_id_field" style="display: none;"> <!-- Wird per JS gesteuert -->
-        {{ form.tcap_id.label(class="form-control-label") }}
-        {{ form.tcap_id(class="form-control " + ("is-invalid" if form.tcap_id.errors else "")) }}
-        {% if form.tcap_id.errors %}
-            <div class="invalid-feedback">
-                {% for error in form.tcap_id.errors %}<span>{{ error }}</span>{% endfor %}
+    {# Form action changes based on mode #}
+    <form method="POST" 
+          action="{{ url_for('main.edit_coaching', coaching_id=coaching_id_being_edited, next=request.args.get('next')) if is_edit_mode else url_for('main.add_coaching') }}" novalidate>
+        
+        {{ form.hidden_tag() }} {# Includes CSRF token if Flask-WTF is configured #}
+
+        <div class="form-row">
+            <div class="form-group col-md-4">
+                {{ form.team_member_id.label(class="form-control-label") }}
+                {{ form.team_member_id(class="form-control custom-select " + ("is-invalid" if form.team_member_id.errors else "")) }} {# Added custom-select for consistency #}
+                {% if form.team_member_id.errors %}
+                    <div class="invalid-feedback">
+                        {% for error in form.team_member_id.errors %}<span>{{ error }}</span>{% endfor %}
+                    </div>
+                {% endif %}
             </div>
-        {% endif %}
-    </div>
-
-    <hr>
-    <h4>Leitfaden Checkmarks</h4>
-    <div class="form-row">
-        <div class="form-group col-md-3">
-            {{ form.leitfaden_begruessung.label(class="form-control-label") }}
-            {{ form.leitfaden_begruessung(class="form-control custom-select") }}
-        </div>
-        <div class="form-group col-md-3">
-            {{ form.leitfaden_legitimation.label(class="form-control-label") }}
-            {{ form.leitfaden_legitimation(class="form-control custom-select") }}
-        </div>
-        <div class="form-group col-md-3">
-            {{ form.leitfaden_pka.label(class="form-control-label") }}
-            {{ form.leitfaden_pka(class="form-control custom-select") }}
-        </div>
-         <div class="form-group col-md-3">
-            {{ form.leitfaden_kek.label(class="form-control-label") }}
-            {{ form.leitfaden_kek(class="form-control custom-select") }}
-        </div>
-    </div>
-    <div class="form-row">
-        <div class="form-group col-md-4">
-            {{ form.leitfaden_angebot.label(class="form-control-label") }}
-            {{ form.leitfaden_angebot(class="form-control custom-select") }}
-        </div>
-        <div class="form-group col-md-4">
-            {{ form.leitfaden_zusammenfassung.label(class="form-control-label") }}
-            {{ form.leitfaden_zusammenfassung(class="form-control custom-select") }}
-        </div>
-        <div class="form-group col-md-4">
-            {{ form.leitfaden_kzb.label(class="form-control-label") }}
-            {{ form.leitfaden_kzb(class="form-control custom-select") }}
-        </div>
-    </div>
-    <hr>
-
-    <div class="form-row">
-        <div class="form-group col-md-6">
-            {{ form.performance_mark.label(class="form-control-label") }}
-            {{ form.performance_mark(class="form-control " + ("is-invalid" if form.performance_mark.errors else "")) }}
-            {% if form.performance_mark.errors %}
-                <div class="invalid-feedback">
-                    {% for error in form.performance_mark.errors %}<span>{{ error }}</span>{% endfor %}
-                </div>
-            {% endif %}
-        </div>
-        <div class="form-group col-md-6">
-            {{ form.time_spent.label(class="form-control-label") }}
-            {{ form.time_spent(class="form-control " + ("is-invalid" if form.time_spent.errors else "")) }}
-            {% if form.time_spent.errors %}
-                <div class="invalid-feedback">
-                    {% for error in form.time_spent.errors %}<span>{{ error }}</span>{% endfor %}
-                </div>
-            {% endif %}
-        </div>
-    </div>
-    
-    <div class="form-group">
-        {{ form.coach_notes.label(class="form-control-label") }}
-        {{ form.coach_notes(class="form-control " + ("is-invalid" if form.coach_notes.errors else ""), rows=4, placeholder="Notizen zum Coaching...") }}
-        {% if form.coach_notes.errors %}
-            <div class="invalid-feedback">
-                {% for error in form.coach_notes.errors %}<span>{{ error }}</span>{% endfor %}
+            <div class="form-group col-md-4">
+                {{ form.coaching_style.label(class="form-control-label") }}
+                {{ form.coaching_style(class="form-control custom-select " + ("is-invalid" if form.coaching_style.errors else "")) }} {# Added custom-select #}
+                {% if form.coaching_style.errors %}
+                    <div class="invalid-feedback">
+                        {% for error in form.coaching_style.errors %}<span>{{ error }}</span>{% endfor %}
+                    </div>
+                {% endif %}
             </div>
-        {% endif %}
-    </div>
-    
-    <div class="form-group">
-        {{ form.submit(class="btn telekom-button") }}
-    </div>
-</form>
+            <div class="form-group col-md-4">
+                {{ form.coaching_subject.label(class="form-control-label") }}
+                {{ form.coaching_subject(class="form-control custom-select " + ("is-invalid" if form.coaching_subject.errors else "")) }}
+                {% if form.coaching_subject.errors %}
+                    <div class="invalid-feedback">
+                        {% for error in form.coaching_subject.errors %}<span>{{ error }}</span>{% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="form-group" id="tcap_id_field" {% if not (form.coaching_style.data == 'TCAP' or (coaching and coaching.coaching_style == 'TCAP')) %}style="display: none;"{% endif %}>
+            {{ form.tcap_id.label(class="form-control-label") }}
+            {{ form.tcap_id(class="form-control " + ("is-invalid" if form.tcap_id.errors else "")) }}
+            {% if form.tcap_id.errors %}
+                <div class="invalid-feedback">
+                    {% for error in form.tcap_id.errors %}<span>{{ error }}</span>{% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        <hr>
+        <h4>Leitfaden Checkmarks</h4>
+        <div class="form-row">
+            <div class="form-group col-md-3">
+                {{ form.leitfaden_begruessung.label(class="form-control-label") }}
+                {{ form.leitfaden_begruessung(class="form-control custom-select") }}
+            </div>
+            <div class="form-group col-md-3">
+                {{ form.leitfaden_legitimation.label(class="form-control-label") }}
+                {{ form.leitfaden_legitimation(class="form-control custom-select") }}
+            </div>
+            <div class="form-group col-md-3">
+                {{ form.leitfaden_pka.label(class="form-control-label") }}
+                {{ form.leitfaden_pka(class="form-control custom-select") }}
+            </div>
+            <div class="form-group col-md-3">
+                {{ form.leitfaden_kek.label(class="form-control-label") }}
+                {{ form.leitfaden_kek(class="form-control custom-select") }}
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group col-md-4">
+                {{ form.leitfaden_angebot.label(class="form-control-label") }}
+                {{ form.leitfaden_angebot(class="form-control custom-select") }}
+            </div>
+            <div class="form-group col-md-4">
+                {{ form.leitfaden_zusammenfassung.label(class="form-control-label") }}
+                {{ form.leitfaden_zusammenfassung(class="form-control custom-select") }}
+            </div>
+            <div class="form-group col-md-4">
+                {{ form.leitfaden_kzb.label(class="form-control-label") }}
+                {{ form.leitfaden_kzb(class="form-control custom-select") }}
+            </div>
+        </div>
+        <hr>
+
+        <div class="form-row">
+            <div class="form-group col-md-6">
+                {{ form.performance_mark.label(class="form-control-label") }}
+                {{ form.performance_mark(class="form-control " + ("is-invalid" if form.performance_mark.errors else "")) }}
+                {% if form.performance_mark.errors %}
+                    <div class="invalid-feedback">
+                        {% for error in form.performance_mark.errors %}<span>{{ error }}</span>{% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+            <div class="form-group col-md-6">
+                {{ form.time_spent.label(class="form-control-label") }}
+                {{ form.time_spent(class="form-control " + ("is-invalid" if form.time_spent.errors else "")) }}
+                {% if form.time_spent.errors %}
+                    <div class="invalid-feedback">
+                        {% for error in form.time_spent.errors %}<span>{{ error }}</span>{% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="form-group">
+            {{ form.coach_notes.label(class="form-control-label") }}
+            {{ form.coach_notes(class="form-control " + ("is-invalid" if form.coach_notes.errors else ""), rows=4, placeholder="Notizen zum Coaching...") }}
+            {% if form.coach_notes.errors %}
+                <div class="invalid-feedback">
+                    {% for error in form.coach_notes.errors %}<span>{{ error }}</span>{% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="form-group">
+            <button type="submit" class="btn telekom-button">
+                {% if is_edit_mode %}Coaching Aktualisieren{% else %}Coaching Speichern{% endif %}
+            </button>
+            <a href="{{ request.args.get('next') or url_for('main.index') }}" class="btn btn-secondary ml-2">Abbrechen</a>
+        </div>
+    </form>
+</div>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
-<script>
-    {{ tcap_js|safe }} {# Fügt das JavaScript aus der Route ein #}
-</script>
+{% if tcap_js %}
+    <script>
+        {{ tcap_js|safe }} {# Fügt das JavaScript aus der Route ein #}
+    </script>
+{% endif %}
 {% endblock %}
