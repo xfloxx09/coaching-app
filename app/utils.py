@@ -34,4 +34,5 @@ ROLE_QM = 'Qualitätsmanager'
 ROLE_SALESCOACH = 'SalesCoach'
 ROLE_TRAINER = 'Trainer'
 ROLE_TEAMLEITER = 'Teamleiter'
+ROLE_ABTEILUNGSLEITER = 'Abteilungsleiter'
 # Teammitglied ist keine Rolle, die spezielle Rechte hat, sondern eher der Standard.
