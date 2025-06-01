@@ -24,8 +24,8 @@ class RegistrationForm(FlaskForm):
         ('SalesCoach', 'Sales-Coach'),
         ('Trainer', 'Trainer'),
         ('Projektleiter', 'AL/PL'),
-        ('Admin', 'Admin')
-        ('Abteilungsleiter', 'Abteilungsleiter')
+        ('Admin', 'Admin'),
+        ('Abteilungsleiter', 'Abteilungsleiter'),
         ('Team-Manager', 'Team-Manager')
     ], validators=[DataRequired("Rolle ist erforderlich.")])
     team_id = SelectField('Team (nur für Teamleiter)', coerce=int, option_widget=None, choices=[])
