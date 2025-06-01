@@ -32,7 +32,8 @@ def calculate_date_range(period_filter_str=None):
     elif '-' in period_filter_str and len(period_filter_str)==7:
         try: y_s,m_s=period_filter_str.split('-'); yr=int(y_s); m_i=int(m_s)
             if 1<=m_i<=12: start_date,end_date=datetime(yr,m_i,1,0,0,0,tzinfo=timezone.utc),datetime(yr,m_i,monthrange(yr,m_i)[1],23,59,59,999999,tzinfo=timezone.utc)
-        except ValueError: pass
+       except ValueError: # <--- THIS LINE WAS MISSING/INCORRECTLY INDENTED
+            pass           # <--- THIS LINE WAS MISSING/INCORRECTLY INDENTED
     return start_date,end_date
 
 def get_filtered_coachings_subquery(period_filter_str=None):
