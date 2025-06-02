@@ -1,5 +1,5 @@
 # app/main_routes.py
-from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, current_app
+from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, current_app, jsonify # Added jsonify
 from flask_login import login_required, current_user
 from app import db
 from app.models import User, Team, TeamMember, Coaching
@@ -30,13 +30,13 @@ def calculate_date_range(period_filter_str=None):
         else: start_date,end_date=datetime(yr,10,1,0,0,0,tzinfo=timezone.utc),datetime(yr,12,monthrange(yr,12)[1],23,59,59,999999,tzinfo=timezone.utc)
     elif period_filter_str == 'current_year': yr=now.year; start_date,end_date=datetime(yr,1,1,0,0,0,tzinfo=timezone.utc),datetime(yr,12,monthrange(yr,12)[1],23,59,59,999999,tzinfo=timezone.utc)
     elif '-' in period_filter_str and len(period_filter_str)==7:
-        try: # This try block was the source of the error due to missing except
+        try: 
             y_s,m_s=period_filter_str.split('-'); yr=int(y_s); m_i=int(m_s)
             if 1<=m_i<=12: 
                 start_date=datetime(yr,m_i,1,0,0,0,tzinfo=timezone.utc)
                 end_date=datetime(yr,m_i,monthrange(yr,m_i)[1],23,59,59,999999,tzinfo=timezone.utc)
-        except ValueError: # THIS WAS THE MISSING PART
-            pass           # Now the try block is complete
+        except ValueError: 
+            pass           
     return start_date,end_date
 
 def get_filtered_coachings_subquery(period_filter_str=None):
@@ -121,13 +121,23 @@ def team_view():
     team_member_ids_in_selected_team = [member.id for member in selected_team_object.members]
     if team_member_ids_in_selected_team:
         team_coachings_list_for_display = Coaching.query.filter(Coaching.team_member_id.in_(team_member_ids_in_selected_team)).order_by(desc(Coaching.coaching_date)).limit(10).all()
-    for member in selected_team_object.members:
+    for member in selected_team_object.members: # member here is a TeamMember object
         member_coachings_list = Coaching.query.filter_by(team_member_id=member.id).all()
+        
+        # Calculate average score using the overall_score property from Coaching model
         avg_score_val = sum(c.overall_score for c in member_coachings_list) / len(member_coachings_list) if member_coachings_list else 0
+        
         total_coaching_time_minutes_val = sum(c.time_spent for c in member_coachings_list if c.time_spent is not None)
         hours = total_coaching_time_minutes_val // 60; minutes = total_coaching_time_minutes_val % 60
         formatted_time_str = f"{hours} Std. {minutes} Min."
-        team_members_stats.append({'id': member.id, 'name': member.name, 'avg_score': round(avg_score_val, 2), 'total_coachings': len(member_coachings_list), 'raw_total_coaching_time': total_coaching_time_minutes_val, 'formatted_total_coaching_time': formatted_time_str})
+        team_members_stats.append({
+            'id': member.id,  # This is TeamMember.id, which is correct for the trend button
+            'name': member.name, 
+            'avg_score': round(avg_score_val, 2), 
+            'total_coachings': len(member_coachings_list), 
+            'raw_total_coaching_time': total_coaching_time_minutes_val, 
+            'formatted_total_coaching_time': formatted_time_str
+        })
     all_teams_for_dropdown = []
     if current_user.role in [ROLE_ADMIN, ROLE_PROJEKTLEITER, ROLE_ABTEILUNGSLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER]:
         all_teams_for_dropdown = Team.query.order_by(Team.name).all()
@@ -167,16 +177,16 @@ def edit_coaching(coaching_id):
             db.session.commit(); flash('Coaching erfolgreich aktualisiert!', 'success')
             return redirect(request.args.get('next') or url_for('main.index'))
         except Exception as e: db.session.rollback(); current_app.logger.error(f"Update coaching ID {coaching_id} error: {e}"); flash(f'Fehler: {str(e)}', 'danger')
-    if request.method == 'GET' or not form.validate_on_submit(): # Repopulate choices on GET or failed POST
+    if request.method == 'GET' or not form.validate_on_submit(): 
         choices = []
         if form_user_role == ROLE_TEAMLEITER and form_user_team_id:
             for m in TeamMember.query.filter_by(team_id=form_user_team_id).order_by(TeamMember.name).all(): choices.append((m.id, m.name))
-        else: # Admin or other roles that should see all
+        else: 
             for team_for_choices in Team.query.order_by(Team.name).all():
                 for m in TeamMember.query.filter_by(team_id=team_for_choices.id).order_by(TeamMember.name).all(): choices.append((m.id, f"{m.name} ({team_for_choices.name})"))
         form.team_member_id.choices = choices if choices else []
-        form.team_member_id.data = coaching_to_edit.team_member_id # Ensure current value selected
-    tcap_js="document.addEventListener('DOMContentLoaded',function(){var s=document.getElementById('coaching_style'),t=document.getElementById('tcap_id_field'),i=document.getElementById('tcap_id');function o(){if(s&&t&&i)if(s.value==='TCAP'){t.style.display='';i.required=!0}else{t.style.display='none';i.required=!1}}s&&t&&i&&(s.addEventListener('change',o),o())});" # Removed i.value='' for edit
+        form.team_member_id.data = coaching_to_edit.team_member_id 
+    tcap_js="document.addEventListener('DOMContentLoaded',function(){var s=document.getElementById('coaching_style'),t=document.getElementById('tcap_id_field'),i=document.getElementById('tcap_id');function o(){if(s&&t&&i)if(s.value==='TCAP'){t.style.display='';i.required=!0}else{t.style.display='none';i.required=!1}}s&&t&&i&&(s.addEventListener('change',o),o())});"
     return render_template('main/add_coaching.html',title=f'Coaching ID {coaching_to_edit.id} Bearbeiten',form=form,is_edit_mode=True,coaching=coaching_to_edit, coaching_id_being_edited=coaching_to_edit.id,tcap_js=tcap_js,config=current_app.config)
 
 @bp.route('/coaching_review_dashboard', methods=['GET', 'POST'])
@@ -209,3 +219,62 @@ def pl_qm_dashboard():
     top_3 = sorted_data[:3]; teams_c = [t for t in all_teams_data if t.get('num_coachings',0)>0]
     flop_3 = sorted(teams_c,key=lambda x:(x.get('avg_score',0),-x.get('num_coachings',0)))[:3] if teams_c else []
     return render_template('main/projektleiter_dashboard.html',title=title,coachings_paginated=coachings_paginated,note_form=note_form,top_3_teams=top_3,flop_3_teams=flop_3,config=current_app.config)
+
+# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# NEW API ENDPOINT FOR MEMBER COACHING TREND
+# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+@bp.route('/api/member_coaching_trend', methods=['GET'])
+@login_required # Or whatever authentication/authorization is appropriate
+def get_member_coaching_trend():
+    team_member_id_str = request.args.get('team_member_id')
+    count_str = request.args.get('count', '10') # Default to 10 coachings
+
+    if not team_member_id_str:
+        return jsonify({"error": "Team Member ID (team_member_id) is required"}), 400
+    
+    try:
+        team_member_id = int(team_member_id_str)
+    except ValueError:
+        return jsonify({"error": "Invalid Team Member ID format"}), 400
+
+    # Optional: Fetch the TeamMember to ensure it exists 
+    # member = TeamMember.query.get(team_member_id)
+    # if not member:
+    #     return jsonify({"error": "Team Member not found"}), 404
+
+    query = Coaching.query.filter_by(team_member_id=team_member_id) \
+                          .order_by(Coaching.coaching_date.desc()) 
+
+    if count_str.lower() != 'all':
+        try:
+            count = int(count_str)
+            if count <= 0:
+                 return jsonify({"error": "Count must be a positive integer or 'all'"}), 400
+            query = query.limit(count)
+        except ValueError:
+            return jsonify({"error": "Invalid count format"}), 400
+    
+    recent_coachings = query.all()
+    
+    # Data needs to be in chronological order for the chart (oldest to newest of the selection)
+    recent_coachings.reverse() 
+
+    if not recent_coachings:
+        return jsonify({"labels": [], "scores": [], "dates": []})
+
+    labels = [] # e.g., "Coaching 1", "Coaching 2"
+    scores = [] # e.g., 85, 90
+    dates = []  # e.g., "23.07.24", "30.07.24"
+    
+    for i, coaching in enumerate(recent_coachings):
+        labels.append(f"Coaching {i+1}") 
+        scores.append(coaching.overall_score if coaching.overall_score is not None else 0)
+        # Format date as desired for X-axis display
+        dates.append(coaching.coaching_date.strftime('%d.%m.%y'))
+
+
+    return jsonify({
+        "labels": labels, # For tooltip titles primarily
+        "scores": scores,
+        "dates": dates    # For X-axis display
+    })
