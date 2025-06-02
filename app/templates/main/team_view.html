@@ -125,7 +125,7 @@
     #coachingTrendChart {
         max-height: 400px; 
     }
-    .telekom-button-outline-secondary { /* A new button style, if needed */
+    .telekom-button-outline-secondary { /* For the Trend button */
         color: #adb5bd;
         background-color: transparent;
         background-image: none;
@@ -136,6 +136,19 @@
         background-color: #adb5bd;
         border-color: #adb5bd;
     }
+
+    /* NEW CLASS FOR THE FILLED "COACHINGS" BUTTON */
+    .telekom-button-filled-magenta {
+        background-color: #e20074; /* Telekom Magenta fill */
+        color: white;              /* White text */
+        border-color: #e20074;     /* Matching border color */
+    }
+    .telekom-button-filled-magenta:hover {
+        background-color: #c0005e; /* Darker Magenta for Hover, from your style.css .telekom-button:hover */
+        border-color: #c0005e;   /* Darker border for Hover */
+        color: white;
+    }
+
 </style>
 {% endblock %}
 
@@ -216,10 +229,11 @@
                             </div>
                              
                              <div class="text-center details-link-container mt-auto d-flex justify-content-around align-items-center">
-                                 <a href="{{ url_for('main.index', search=member_stat.name, team=team.id if team else 'all', period='all') }}" class="btn btn-sm telekom-button-outline mr-1">
+                                 {# MODIFIED "Coachings" BUTTON BELOW #}
+                                 <a href="{{ url_for('main.index', search=member_stat.name, team=team.id if team else 'all', period='all') }}" class="btn btn-sm telekom-button-filled-magenta mr-1">
                                      Coachings
                                  </a>
-                                 {# NEW: Trend Button #}
+                                 {# Trend Button #}
                                  {% if member_stat.id and member_stat.total_coachings > 0 %} {# member_stat.id is TeamMember.id #}
                                  <button class="btn btn-sm telekom-button-outline-secondary view-trend-btn ml-1" 
                                          data-member-id="{{ member_stat.id }}" 
@@ -394,9 +408,6 @@ $(document).ready(function() {
             trendChartInstance.destroy();
             trendChartInstance = null;
         }
-        // Don't reset currentTrendMemberId here if refresh button could be used without reopening
-        // currentTrendMemberId = null; 
-        // currentTrendMemberName = null;
         $('#noTrendDataMessage').hide();
         $('#coachingTrendChart').show(); // Ensure canvas is visible for next time
     });
@@ -404,8 +415,7 @@ $(document).ready(function() {
     function fetchAndRenderTrend(memberId, count) {
         if (!memberId) return;
 
-        // Show a simple loading state
-        if (trendChartInstance) trendChartInstance.destroy(); // Destroy previous before loading
+        if (trendChartInstance) trendChartInstance.destroy(); 
         $('#coachingTrendChart').hide();
         $('#noTrendDataMessage').html('<i class="fas fa-spinner fa-spin"></i> Lade Trend Daten...').show();
 
@@ -413,16 +423,16 @@ $(document).ready(function() {
             url: "{{ url_for('main.get_member_coaching_trend') }}",
             type: 'GET',
             data: {
-                team_member_id: memberId, // API expects team_member_id
+                team_member_id: memberId, 
                 count: count
             },
             success: function(response) {
-                if (response.labels && response.labels.length > 1) { // Need at least 2 points for a line
+                if (response.labels && response.labels.length > 1) { 
                     renderChart(response.labels, response.scores, response.dates);
                     $('#noTrendDataMessage').hide();
                     $('#coachingTrendChart').show();
                 } else if (response.labels && response.labels.length === 1) {
-                    renderChart(response.labels, response.scores, response.dates); // Render single point if desired
+                    renderChart(response.labels, response.scores, response.dates); 
                     $('#noTrendDataMessage').text('Nur ein Coaching-Datenpunkt vorhanden. Trendlinie nicht darstellbar.').show();
                      $('#coachingTrendChart').show();
                 }
@@ -441,7 +451,7 @@ $(document).ready(function() {
         });
     }
 
-    function renderChart(labels, scores, dates) { // Added dates parameter
+    function renderChart(labels, scores, dates) { 
         if (trendChartInstance) {
             trendChartInstance.destroy();
         }
@@ -449,12 +459,12 @@ $(document).ready(function() {
         trendChartInstance = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: dates, // Use actual dates for x-axis labels
+                labels: dates, 
                 datasets: [{
                     label: 'Overall Score (%)',
                     data: scores,
-                    borderColor: '#e20074', // Telekom Magenta
-                    backgroundColor: 'rgba(226, 0, 116, 0.2)', // Slightly more opaque fill
+                    borderColor: '#e20074', 
+                    backgroundColor: 'rgba(226, 0, 116, 0.2)', 
                     tension: 0.1, 
                     fill: true,
                     pointBackgroundColor: '#ffffff',
@@ -493,7 +503,7 @@ $(document).ready(function() {
                         },
                         ticks: {
                             color: '#f8f9fa',
-                            maxRotation: 45, // Rotate labels if they overlap
+                            maxRotation: 45, 
                             minRotation: 0
                         },
                         grid: {
@@ -513,10 +523,9 @@ $(document).ready(function() {
                         backgroundColor: 'rgba(0,0,0,0.8)',
                         titleColor: '#ffffff',
                         bodyColor: '#ffffff',
-                        callbacks: { // To show "Coaching X: Score" in tooltip
+                        callbacks: { 
                              title: function(tooltipItems) {
-                                // tooltipItems is an array, use the first item for the label
-                                return labels[tooltipItems[0].dataIndex]; // Original "Coaching X" label
+                                return labels[tooltipItems[0].dataIndex]; 
                             },
                             label: function(context) {
                                 let label = context.dataset.label || '';
