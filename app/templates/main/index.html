@@ -100,9 +100,10 @@
         </div>
         <div class="col-md-6 mb-4">
             <div class="card h-100">
-                <div class="card-header telekom-bg-magenta text-white">Ø Coaching-Dauer / Team (Min.)</div>
+                {# UPDATED CHART TITLE HERE #}
+                <div class="card-header telekom-bg-magenta text-white">Gesamte Coaching-Dauer / Team (Min.)</div>
                 <div class="card-body d-flex align-items-center justify-content-center p-2">
-                    <canvas id="avgTimeByTeamChart" style="max-height: 300px; width: 100%;"></canvas>
+                    <canvas id="timeSpentChart" style="max-height: 300px; width: 100%;"></canvas> {# UPDATED ID FOR CLARITY #}
                 </div>
             </div>
         </div>
@@ -129,7 +130,6 @@
 
     <div class="row mt-3 mb-2 align-items-center">
         <div class="col-md-7 col-lg-8">
-            {# This total_coachings now refers to total_coachings_in_filtered_list from the route #}
             <h3 class="mb-0">Coaching Liste (Angezeigt: {{ coachings_paginated.items|length if coachings_paginated and coachings_paginated.items else 0 }}, Gesamt gefiltert: {{ total_coachings if total_coachings is not none else 0 }})</h3>
         </div>
         <div class="col-md-5 col-lg-4">
@@ -283,22 +283,26 @@
         else { console.warn("ChartDataLabels Plugin wurde nicht geladen."); }
         if (typeof ChartAnnotation !== 'undefined') { Chart.register(ChartAnnotation); } 
         else { console.warn("ChartAnnotation Plugin wurde nicht geladen."); }
+        
         const chartAvgPerformanceCtx = document.getElementById('avgPerfByTeamChart');
-        const chartAvgTimeCtx = document.getElementById('avgTimeByTeamChart');
+        const timeSpentChartCtx = document.getElementById('timeSpentChart'); // UPDATED ID
         const chartCoachingsDoneCtx = document.getElementById('coachingsDoneByTeamChart');
         const subjectDistributionCtx = document.getElementById('subjectDistributionChart');
+        
         const chartLabels = {{ chart_labels|tojson|safe }};
         const chartAvgPerformanceData = {{ chart_avg_performance_mark_percentage|tojson|safe }};
-        const chartAvgTimeData = {{ chart_avg_time_spent|tojson|safe }};
+        const chartTotalTimeData = {{ chart_total_time_spent|tojson|safe }}; // UPDATED: Use total time
         const chartCoachingsDoneData = {{ chart_coachings_done|tojson|safe }};
         const subjectChartLabels = {{ subject_chart_labels|tojson|safe }};
         const subjectChartValues = {{ subject_chart_values|tojson|safe }};
+        
         const telekomMagenta = 'rgba(226, 0, 116, 0.7)';
         const telekomMagentaBorder = 'rgba(226, 0, 116, 1)';
         const telekomDarkGreen = 'rgba(0, 100, 0, 1)';
         const pieColors = ['rgba(226,0,116,0.7)','rgba(0,169,224,0.7)','rgba(100,100,100,0.7)','rgba(150,150,150,0.7)','rgba(255,140,0,0.7)','rgba(75,192,192,0.7)','rgba(255,99,132,0.7)','rgba(54,162,235,0.7)','rgba(255,206,86,0.7)','rgba(153,102,255,0.7)'];
         const textColor = '#f0f0f0'; 
         const dataLabelColor = '#ffffff'; 
+
         function drawChartWithMessage(ctx, config, message = "Keine Daten für dieses Chart verfügbar.") {
             let hasData = false;
             if (config.data.labels && config.data.labels.length > 0) {
@@ -308,13 +312,200 @@
             if (ctx && hasData) { try { new Chart(ctx, config); } catch (e) { console.error("Chart.js Error for canvas ID '" + ctx.id + "':", e); const c = ctx.getContext('2d'); c.font = "16px Arial"; c.fillStyle = textColor; c.textAlign = "center"; c.fillText("Fehler Chart.", ctx.canvas.width / 2, ctx.canvas.height / 2); }
             } else if (ctx) { const c = ctx.getContext('2d'); c.font = "16px Arial"; c.fillStyle = textColor; c.textAlign = "center"; c.fillText(message, ctx.canvas.width / 2, ctx.canvas.height / 2); }
         }
-        const commonChartOptions = { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { color: textColor, precision: 0 } }, x: { ticks: { color: textColor } } }, plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'end', color: dataLabelColor, font: { weight: 'bold' }, formatter: Math.round } } };
-        drawChartWithMessage(chartAvgPerformanceCtx, { type: 'bar', data: { labels: chartLabels, datasets: [{ label: 'Performance', data: chartAvgPerformanceData, backgroundColor: telekomMagenta, borderColor: telekomMagentaBorder, borderWidth: 1 }] }, options: { ...commonChartOptions, scales: { ...commonChartOptions.scales, y: { ...commonChartOptions.scales.y, min:0, max: 105, ticks: { ...commonChartOptions.scales.y.ticks, stepSize: 10, callback: function(value) {if (value <= 100) { return value + "%";}return '';} } } }, plugins: { ...commonChartOptions.plugins, datalabels: {...commonChartOptions.plugins.datalabels, formatter: (value) => Math.round(value) + '%'}, annotation: { annotations: { line1: { type: 'line', yMin: {{ config.PERFORMANCE_BENCHMARK or 80 }}, yMax: {{ config.PERFORMANCE_BENCHMARK or 80 }}, borderColor: telekomDarkGreen, borderWidth: 2, borderDash: [6, 6], label: { content: 'Benchmark ({{ config.PERFORMANCE_BENCHMARK or 80 }}%)', enabled: false, position: 'end', backgroundColor: 'rgba(0,100,0,0.7)', color: 'white', font: {size: 10} } } } } } } });
-        let maxAvgTime = 0; if (chartAvgTimeData && chartAvgTimeData.length > 0) { const numericAvgTimeData = chartAvgTimeData.filter(d => typeof d === 'number' && !isNaN(d)); if (numericAvgTimeData.length > 0) { maxAvgTime = Math.max(...numericAvgTimeData); } }
-        drawChartWithMessage(chartAvgTimeCtx, { type: 'bar', data: { labels: chartLabels, datasets: [{ label: 'Dauer', data: chartAvgTimeData, backgroundColor: telekomMagenta, borderColor: telekomMagentaBorder, borderWidth: 1 }] }, options: { ...commonChartOptions, scales: { ...commonChartOptions.scales, y: { ...commonChartOptions.scales.y, max: maxAvgTime > 0 ? Math.ceil(maxAvgTime * 1.2) + 5 : 30 } }, plugins: { ...commonChartOptions.plugins, datalabels: {...commonChartOptions.plugins.datalabels, formatter: (value) => Math.round(value) + ' Min'} } } });
-        let maxCoachingsDone = 0; if (chartCoachingsDoneData && chartCoachingsDoneData.length > 0) { const numericCoachingsDoneData = chartCoachingsDoneData.filter(d => typeof d === 'number' && !isNaN(d)); if (numericCoachingsDoneData.length > 0) { maxCoachingsDone = Math.max(...numericCoachingsDoneData); } }
-        drawChartWithMessage(chartCoachingsDoneCtx, { type: 'bar', data: { labels: chartLabels, datasets: [{ label: 'Anzahl', data: chartCoachingsDoneData, backgroundColor: telekomMagenta, borderColor: telekomMagentaBorder, borderWidth: 1 }] }, options: { ...commonChartOptions, scales: { ...commonChartOptions.scales, y: { ...commonChartOptions.scales.y, ticks: { ...commonChartOptions.scales.y.ticks, stepSize: 1, precision: 0 }, max: maxCoachingsDone > 0 ? Math.ceil(maxCoachingsDone * 1.2) + 1 : 5 } } } });
-        drawChartWithMessage(subjectDistributionCtx, { type: 'pie', data: { labels: subjectChartLabels, datasets: [{ label: 'Coaching-Themen', data: subjectChartValues, backgroundColor: pieColors.slice(0, subjectChartLabels.length), hoverOffset: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: 'top', labels: { color: textColor } }, datalabels: { formatter: (value, ctx) => { let sum = 0; let dataArr = ctx.chart.data.datasets[0].data; dataArr.map(data => { sum += data; }); if (sum === 0) return '0%'; let percentage = (value*100 / sum); if (percentage < 5 && ctx.chart.data.datasets[0].data.length > 3) return ''; return ctx.chart.data.labels[ctx.dataIndex] + ' ' + percentage.toFixed(1)+"%"; }, color: '#fff', align: 'center', textAlign: 'center', font: {size: 10, weight: 'bold'} } } } }, "Keine Daten für Themenverteilung verfügbar.");
+        
+        const commonChartOptions = { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            scales: { 
+                y: { 
+                    beginAtZero: true, 
+                    ticks: { color: textColor, precision: 0 } 
+                }, 
+                x: { 
+                    ticks: { color: textColor } 
+                } 
+            }, 
+            plugins: { 
+                legend: { display: false }, 
+                datalabels: { 
+                    anchor: 'end', 
+                    align: 'end', 
+                    color: dataLabelColor, 
+                    font: { weight: 'bold' }, 
+                    formatter: Math.round 
+                } 
+            } 
+        };
+
+        // Chart 1: Average Performance by Team
+        drawChartWithMessage(chartAvgPerformanceCtx, { 
+            type: 'bar', 
+            data: { 
+                labels: chartLabels, 
+                datasets: [{ 
+                    label: 'Performance', 
+                    data: chartAvgPerformanceData, 
+                    backgroundColor: telekomMagenta, 
+                    borderColor: telekomMagentaBorder, 
+                    borderWidth: 1 
+                }] 
+            }, 
+            options: { 
+                ...commonChartOptions, 
+                scales: { 
+                    ...commonChartOptions.scales, 
+                    y: { 
+                        ...commonChartOptions.scales.y, 
+                        min:0, 
+                        max: 105, 
+                        ticks: { 
+                            ...commonChartOptions.scales.y.ticks, 
+                            stepSize: 10, 
+                            callback: function(value) { if (value <= 100) { return value + "%";} return '';} 
+                        } 
+                    } 
+                }, 
+                plugins: { 
+                    ...commonChartOptions.plugins, 
+                    datalabels: {
+                        ...commonChartOptions.plugins.datalabels, 
+                        formatter: (value) => Math.round(value) + '%'
+                    }, 
+                    annotation: { 
+                        annotations: { 
+                            line1: { 
+                                type: 'line', 
+                                yMin: {{ config.PERFORMANCE_BENCHMARK or 80 }}, 
+                                yMax: {{ config.PERFORMANCE_BENCHMARK or 80 }}, 
+                                borderColor: telekomDarkGreen, 
+                                borderWidth: 2, 
+                                borderDash: [6, 6], 
+                                label: { 
+                                    content: 'Benchmark ({{ config.PERFORMANCE_BENCHMARK or 80 }}%)', 
+                                    enabled: false, // Set to true to show label
+                                    position: 'end', 
+                                    backgroundColor: 'rgba(0,100,0,0.7)', 
+                                    color: 'white', 
+                                    font: {size: 10} 
+                                } 
+                            } 
+                        } 
+                    } 
+                } 
+            } 
+        });
+
+        // Chart 2: Total Time Spent by Team (UPDATED)
+        let maxTotalTime = 0; 
+        if (chartTotalTimeData && chartTotalTimeData.length > 0) { 
+            const numericTotalTimeData = chartTotalTimeData.filter(d => typeof d === 'number' && !isNaN(d)); 
+            if (numericTotalTimeData.length > 0) { 
+                maxTotalTime = Math.max(...numericTotalTimeData); 
+            } 
+        }
+        drawChartWithMessage(timeSpentChartCtx, { 
+            type: 'bar', 
+            data: { 
+                labels: chartLabels, 
+                datasets: [{ 
+                    label: 'Gesamtdauer (Min.)', // UPDATED LABEL
+                    data: chartTotalTimeData, // UPDATED DATA SOURCE
+                    backgroundColor: telekomMagenta, 
+                    borderColor: telekomMagentaBorder, 
+                    borderWidth: 1 
+                }] 
+            }, 
+            options: { 
+                ...commonChartOptions, 
+                scales: { 
+                    ...commonChartOptions.scales, 
+                    y: { 
+                        ...commonChartOptions.scales.y, 
+                        max: maxTotalTime > 0 ? Math.ceil(maxTotalTime * 1.2) + 5 : 30 // Dynamic Y-axis max
+                    } 
+                }, 
+                plugins: { 
+                    ...commonChartOptions.plugins, 
+                    datalabels: {
+                        ...commonChartOptions.plugins.datalabels, 
+                        formatter: (value) => Math.round(value) + ' Min' // Keep Min suffix
+                    } 
+                } 
+            } 
+        });
+
+        // Chart 3: Coachings Done by Team
+        let maxCoachingsDone = 0; 
+        if (chartCoachingsDoneData && chartCoachingsDoneData.length > 0) { 
+            const numericCoachingsDoneData = chartCoachingsDoneData.filter(d => typeof d === 'number' && !isNaN(d)); 
+            if (numericCoachingsDoneData.length > 0) { 
+                maxCoachingsDone = Math.max(...numericCoachingsDoneData); 
+            } 
+        }
+        drawChartWithMessage(chartCoachingsDoneCtx, { 
+            type: 'bar', 
+            data: { 
+                labels: chartLabels, 
+                datasets: [{ 
+                    label: 'Anzahl', 
+                    data: chartCoachingsDoneData, 
+                    backgroundColor: telekomMagenta, 
+                    borderColor: telekomMagentaBorder, 
+                    borderWidth: 1 
+                }] 
+            }, 
+            options: { 
+                ...commonChartOptions, 
+                scales: { 
+                    ...commonChartOptions.scales, 
+                    y: { 
+                        ...commonChartOptions.scales.y, 
+                        ticks: { ...commonChartOptions.scales.y.ticks, stepSize: 1, precision: 0 }, 
+                        max: maxCoachingsDone > 0 ? Math.ceil(maxCoachingsDone * 1.2) + 1 : 5 
+                    } 
+                } 
+            } 
+        });
+
+        // Chart 4: Subject Distribution
+        drawChartWithMessage(subjectDistributionCtx, { 
+            type: 'pie', 
+            data: { 
+                labels: subjectChartLabels, 
+                datasets: [{ 
+                    label: 'Coaching-Themen', 
+                    data: subjectChartValues, 
+                    backgroundColor: pieColors.slice(0, subjectChartLabels.length), 
+                    hoverOffset: 4 
+                }] 
+            }, 
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false, 
+                plugins: { 
+                    legend: { 
+                        display: true, 
+                        position: 'top', 
+                        labels: { color: textColor } 
+                    }, 
+                    datalabels: { 
+                        formatter: (value, ctx) => { 
+                            let sum = 0; 
+                            let dataArr = ctx.chart.data.datasets[0].data; 
+                            dataArr.map(data => { sum += data; }); 
+                            if (sum === 0) return '0%'; 
+                            let percentage = (value*100 / sum); 
+                            if (percentage < 5 && ctx.chart.data.datasets[0].data.length > 3) return ''; 
+                            return ctx.chart.data.labels[ctx.dataIndex] + ' ' + percentage.toFixed(1)+"%"; 
+                        }, 
+                        color: '#fff', 
+                        align: 'center', 
+                        textAlign: 'center', 
+                        font: {size: 10, weight: 'bold'} 
+                    } 
+                } 
+            } 
+        }, "Keine Daten für Themenverteilung verfügbar.");
     });
     </script>
 {% endblock %}
