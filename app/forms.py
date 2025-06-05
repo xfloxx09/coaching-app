@@ -2,7 +2,9 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, BooleanField, SubmitField, SelectField, IntegerField, TextAreaField, HiddenField
 from wtforms.validators import DataRequired, EqualTo, ValidationError, Length, NumberRange 
-from app.models import User, Team, TeamMember # Stelle sicher, dass alle Modelle importiert sind
+# <<< GEÄNDERT >>> Importiere die ARCHIV-Konstante
+from app.models import User, Team, TeamMember
+from app.utils import ARCHIV_TEAM_NAME
 
 class LoginForm(FlaskForm):
     username = StringField('Benutzername', validators=[DataRequired("Benutzername ist erforderlich.")])
@@ -33,7 +35,8 @@ class RegistrationForm(FlaskForm):
     def __init__(self, original_username=None, *args, **kwargs):
         super(RegistrationForm, self).__init__(*args, **kwargs)
         self.original_username = original_username
-        active_teams = Team.query.order_by(Team.name).all()
+        # <<< GEÄNDERT >>> Schließt das ARCHIV-Team aus der Auswahl aus
+        active_teams = Team.query.filter(Team.name != ARCHIV_TEAM_NAME).order_by(Team.name).all()
         team_choices = [(0, 'Kein Team (für Nicht-Teamleiter)')] 
         if active_teams:
             team_choices.extend([(t.id, t.name) for t in active_teams])
@@ -54,11 +57,25 @@ class TeamForm(FlaskForm):
     team_leader_id = SelectField('Teamleiter', coerce=int, option_widget=None, choices=[])
     submit = SubmitField('Team erstellen/aktualisieren')
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, original_name=None, *args, **kwargs): # original_name für Validierung hinzugefügt
         super(TeamForm, self).__init__(*args, **kwargs)
+        self.original_name = original_name
         possible_leaders = User.query.filter(User.role.in_(['Teamleiter', 'Admin', ''])).order_by(User.username).all()
         self.team_leader_id.choices = [(u.id, u.username) for u in possible_leaders]
         self.team_leader_id.choices.insert(0, (0, 'Kein Teamleiter ausgewählt'))
+    
+    # <<< NEU >>> Validierung, um Konflikte mit ARCHIV zu vermeiden
+    def validate_name(self, name_field):
+        # Wenn der Name nicht geändert wurde, überspringe die Prüfung
+        if self.original_name and self.original_name.strip().upper() == name_field.data.strip().upper():
+            return
+        # Prüfe auf Duplikate
+        if Team.query.filter(Team.name.ilike(name_field.data)).first():
+            raise ValidationError('Ein Team mit diesem Namen existiert bereits.')
+        # Prüfe auf reservierten Namen
+        if name_field.data.strip().upper() == ARCHIV_TEAM_NAME:
+            raise ValidationError(f'Der Teamname "{ARCHIV_TEAM_NAME}" ist für das System reserviert.')
+
 
 class TeamMemberForm(FlaskForm):
     name = StringField('Name des Teammitglieds', validators=[DataRequired(), Length(min=2, max=100)])
@@ -67,11 +84,12 @@ class TeamMemberForm(FlaskForm):
 
     def __init__(self, *args, **kwargs):
         super(TeamMemberForm, self).__init__(*args, **kwargs)
-        active_teams = Team.query.order_by(Team.name).all()
+        # <<< GEÄNDERT >>> Schließt das ARCHIV-Team aus der Auswahl aus
+        active_teams = Team.query.filter(Team.name != ARCHIV_TEAM_NAME).order_by(Team.name).all()
         if active_teams:
             self.team_id.choices = [(t.id, t.name) for t in active_teams]
         else:
-            self.team_id.choices = [("", "Bitte zuerst Teams erstellen")] # Wert ist leerer String
+            self.team_id.choices = [("", "Bitte zuerst Teams erstellen")]
 
 LEITFADEN_CHOICES = [('Ja', 'Ja'), ('Nein', 'Nein'), ('k.A.', 'k.A.')]
 COACHING_SUBJECT_CHOICES = [
@@ -84,12 +102,10 @@ COACHING_SUBJECT_CHOICES = [
 class CoachingForm(FlaskForm):
     team_member_id = SelectField(
         'Teammitglied', 
-        coerce=int, # Wir lassen coerce=int hier, da wir Integer-IDs erwarten
+        coerce=int,
         validators=[DataRequired("Teammitglied ist erforderlich.")], 
         option_widget=None
-        # choices werden im __init__ dynamisch gesetzt
     )
-    # ... (Rest der Felder wie coaching_style, coaching_subject etc. bleiben gleich) ...
     coaching_style = SelectField('Coaching Stil', choices=[('Side-by-Side', 'Side-by-Side'), ('TCAP', 'TCAP')], validators=[DataRequired("Coaching-Stil ist erforderlich.")])
     tcap_id = StringField('T-CAP ID (falls TCAP gewählt)')
     coaching_subject = SelectField('Coaching Thema', choices=COACHING_SUBJECT_CHOICES, validators=[DataRequired("Coaching-Thema ist erforderlich.")])
@@ -105,49 +121,42 @@ class CoachingForm(FlaskForm):
     coach_notes = TextAreaField('Notizen des Coaches', validators=[Length(max=2000)])
     submit = SubmitField('Coaching speichern')
 
+    # <<< GEÄNDERT >>> Der __init__ wird vereinfacht.
+    # Er speichert nur noch die Benutzerinformationen. Die Logik zum Füllen der Choices wird ausgelagert.
     def __init__(self, current_user_role=None, current_user_team_id=None, *args, **kwargs):
         super(CoachingForm, self).__init__(*args, **kwargs)
-        
+        self.current_user_role = current_user_role
+        self.current_user_team_id = current_user_team_id
+
+    # <<< NEU >>> Die Methode, die in der Route aufgerufen wird, um die Choices zu füllen.
+    def update_team_member_choices(self, exclude_archiv=False):
+        """
+        Füllt dynamisch die Auswahl für team_member_id, basierend auf der Rolle des Benutzers
+        und ob das Archiv ausgeschlossen werden soll.
+        """
         generated_choices = [] 
 
-        if current_user_role == 'Teamleiter' and current_user_team_id:
-            team_members = TeamMember.query.filter_by(team_id=current_user_team_id).order_by(TeamMember.name).all()
+        if self.current_user_role == 'Teamleiter' and self.current_user_team_id:
+            # Teamleiter sehen nur Mitglieder ihres eigenen Teams.
+            team_members = TeamMember.query.filter_by(team_id=self.current_user_team_id).order_by(TeamMember.name).all()
             for m in team_members:
-                generated_choices.append((m.id, m.name)) # Wert ist m.id (Integer)
+                generated_choices.append((m.id, m.name))
         else: 
-            all_teams = Team.query.order_by(Team.name).all()
-            for team_obj in all_teams:
+            # Admins, QM, etc. sehen Mitglieder aus allen Teams.
+            query = Team.query
+            if exclude_archiv:
+                # Schließt das ARCHIV-Team aus, wenn angefordert (z.B. beim Hinzufügen eines neuen Coachings).
+                query = query.filter(Team.name != ARCHIV_TEAM_NAME)
+            
+            all_teams_for_choices = query.order_by(Team.name).all()
+            for team_obj in all_teams_for_choices:
                 members = TeamMember.query.filter_by(team_id=team_obj.id).order_by(TeamMember.name).all()
                 for m in members:
-                    generated_choices.append((m.id, f"{m.name} ({team_obj.name})")) # Wert ist m.id (Integer)
+                    generated_choices.append((m.id, f"{m.name} ({team_obj.name})"))
         
-        # Setze die Choices für das Feld
-        # Wichtig: Wenn generated_choices leer ist, wird DataRequired später bei der Validierung fehlschlagen,
-        # was korrekt ist. Wir fügen KEINE Platzhalter-Optionen mit leerem String als Wert hinzu,
-        # wenn coerce=int ist, da dies den ValueError beim Rendern verursacht.
-        if not generated_choices:
-            # Wenn keine Mitglieder da sind, bleibt die Choice-Liste leer.
-            # Das Template muss ggf. darauf reagieren oder eine Meldung anzeigen.
-            # WTForms wird das leere Select-Feld rendern.
-            self.team_member_id.choices = [] 
-            print(f"DEBUG CoachingForm Init: Keine Mitglieder gefunden, Choices sind leer.")
-        else:
-            # Wenn Mitglieder vorhanden sind, füge eine "Bitte wählen"-Option hinzu,
-            # aber mit einem nicht-numerischen oder ungültigen Wert, der coerce=int nicht stört,
-            # und den DataRequired-Validator fehlschlagen lässt, wenn er ausgewählt bleibt.
-            # Besser ist, das Feld initial leer zu lassen, wenn möglich, und auf die Validierung zu vertrauen.
-            # Für die Auswahl:
-            # Die "Bitte wählen"-Option sollte idealerweise einen Wert haben, der nicht mit echten IDs kollidiert
-            # und vom coerce-Typ nicht erfasst wird, wenn er nicht None ist.
-            # Da wir coerce=int haben, DARF der Wert für "Bitte wählen" KEIN leerer String sein.
-            # Wir lassen "Bitte wählen" hier weg und verlassen uns auf DataRequired.
-            # Wenn du eine "Bitte wählen"-Option visuell möchtest, die nicht validiert,
-            # müsste sie einen nicht-Integer-Wert haben und das Feld dürfte nicht DataRequired sein,
-            # oder die Validierung müsste komplexer werden.
-
-            # Einfachste Lösung: Nur die gültigen Choices setzen.
-            self.team_member_id.choices = generated_choices
-            print(f"DEBUG CoachingForm Init Final Choices: {self.team_member_id.choices[:5]}")
+        # Setzt die Choices. Wenn keine Mitglieder gefunden werden, ist die Liste leer,
+        # was den DataRequired-Validator korrekt fehlschlagen lässt.
+        self.team_member_id.choices = generated_choices
 
 
 class ProjectLeaderNoteForm(FlaskForm):
