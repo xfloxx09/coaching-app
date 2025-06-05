@@ -25,7 +25,7 @@
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('main.team_view') }}">Mein Team</a></li>
                     {% endif %}
                     {% if current_user.role in ['Projektleiter', 'Qualitätsmanager', 'Abteilungsleiter'] %} 
-                        <li class="nav-item"><a class="nav-link" href="{{ url_for('main.pl_qm_dashboard') }}">Notizen</a></li> 
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('main.pl_qm_dashboard') }}">Teams</a></li> 
                     {% endif %}
                     {% if current_user.role == 'Admin' %}
                         <li class="nav-item dropdown"> {# Changed to dropdown for more admin options #}
