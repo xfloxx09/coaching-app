@@ -47,12 +47,37 @@ def get_filtered_coachings_subquery(period_filter_str=None):
     return q.subquery('filtered_coachings_sq')
 
 def get_performance_data_for_charts(period_filter_str=None, selected_team_id_str=None):
-    sq=get_filtered_coachings_subquery(period_filter_str)
-    q=db.session.query(Team.id.label('team_id'),Team.name.label('team_name'),func.coalesce(func.avg(sq.c.performance_mark_sq),0).label('avg_perf_mark'),func.coalesce(func.sum(sq.c.time_spent_sq),0).label('total_time'),func.coalesce(func.count(sq.c.coaching_id_sq),0).label('num_coachings')).select_from(Team).outerjoin(TeamMember,Team.id==TeamMember.team_id).outerjoin(sq,TeamMember.id==sq.c.team_member_id_sq)
-    if selected_team_id_str and selected_team_id_str.isdigit(): q=q.filter(Team.id==int(selected_team_id_str))
-    res=q.group_by(Team.id,Team.name).order_by(Team.name).all()
-    avg_perf_pcnt=[round(r.avg_perf_mark*10,2) if r.avg_perf_mark is not None else 0 for r in res]
-    return {'labels':[r.team_name for r in res],'avg_performance_values':avg_perf_pcnt,'avg_time_spent_values':[round(r.total_time/r.num_coachings,2) if r.num_coachings>0 else 0 for r in res],'coachings_done_values':[r.num_coachings for r in res]}
+    sq = get_filtered_coachings_subquery(period_filter_str)
+    q = db.session.query(
+        Team.id.label('team_id'),
+        Team.name.label('team_name'),
+        func.coalesce(func.avg(sq.c.performance_mark_sq), 0).label('avg_perf_mark'),
+        func.coalesce(func.sum(sq.c.time_spent_sq), 0).label('total_time'), # Sum of time_spent
+        func.coalesce(func.count(sq.c.coaching_id_sq), 0).label('num_coachings')
+    ).select_from(Team)\
+     .outerjoin(TeamMember, Team.id == TeamMember.team_id)\
+     .outerjoin(sq, TeamMember.id == sq.c.team_member_id_sq)
+
+    if selected_team_id_str and selected_team_id_str.isdigit():
+        q = q.filter(Team.id == int(selected_team_id_str))
+
+    res = q.group_by(Team.id, Team.name).order_by(Team.name).all()
+    
+    avg_perf_pcnt = [round(r.avg_perf_mark * 10, 2) if r.avg_perf_mark is not None else 0 for r in res]
+    
+    # Old average time calculation (can be removed if no longer used elsewhere)
+    # avg_time_spent_values = [round(r.total_time / r.num_coachings, 2) if r.num_coachings > 0 else 0 for r in res]
+    
+    # NEW: Total time spent values (this directly uses r.total_time which is the sum)
+    total_time_spent_values_list = [r.total_time for r in res]
+
+    return {
+        'labels': [r.team_name for r in res],
+        'avg_performance_values': avg_perf_pcnt,
+        # 'avg_time_spent_values': avg_time_spent_values, # Commented out as we're replacing it for the chart
+        'total_time_spent_values': total_time_spent_values_list, # NEW data for the chart
+        'coachings_done_values': [r.num_coachings for r in res]
+    }
 
 def get_coaching_subject_distribution(period_filter_str=None, selected_team_id_str=None):
     sq=get_filtered_coachings_subquery(period_filter_str)
@@ -79,18 +104,39 @@ def index():
         if not current_user.team_id_if_leader: flash("Kein Team zugewiesen.","warning"); list_q=list_q.filter(sqlalchemy.sql.false())
         else:
             tm_ids=[m.id for m in TeamMember.query.filter_by(team_id=current_user.team_id_if_leader).all()]
-            if not tm_ids: list_q=list_q.filter(Coaching.coach_id==current_user.id) # Coach can see own coachings even if team is empty
+            if not tm_ids: list_q=list_q.filter(Coaching.coach_id==current_user.id) 
             else: list_q=list_q.filter(or_(Coaching.team_member_id.in_(tm_ids),Coaching.coach_id==current_user.id))
     elif team_arg and team_arg.isdigit(): list_q=list_q.filter(TeamMember.team_id==int(team_arg))
     if search_arg: list_q=list_q.filter(or_(TeamMember.name.ilike(f"%{search_arg}%"),User.username.ilike(f"%{search_arg}%"),Coaching.coaching_subject.ilike(f"%{search_arg}%")))
     total_filtered_list=list_q.count()
     coachings_page=list_q.order_by(desc(Coaching.coaching_date)).paginate(page=page,per_page=10,error_out=False)
-    chart_perf=get_performance_data_for_charts(period_arg,team_arg); chart_subj=get_coaching_subject_distribution(period_arg,team_arg)
+    
+    chart_perf=get_performance_data_for_charts(period_arg,team_arg) 
+    chart_subj=get_coaching_subject_distribution(period_arg,team_arg)
+    
     all_teams_dd=Team.query.order_by(Team.name).all()
     now=datetime.now(timezone.utc); cy=now.year; py=cy-1; m_opts=[]
     for m in range(12,0,-1): m_opts.append({'value':f"{py}-{m:02d}",'text':f"{get_month_name_german(m)} {py}"})
     for m in range(now.month,0,-1): m_opts.append({'value':f"{cy}-{m:02d}",'text':f"{get_month_name_german(m)} {cy}"})
-    return render_template('main/index.html',title='Coaching - Dashboard',coachings_paginated=coachings_page,total_coachings=total_filtered_list,chart_labels=chart_perf['labels'],chart_avg_performance_mark_percentage=chart_perf['avg_performance_values'],chart_avg_time_spent=chart_perf['avg_time_spent_values'],chart_coachings_done=chart_perf['coachings_done_values'],subject_chart_labels=chart_subj['labels'],subject_chart_values=chart_subj['values'],all_teams_for_filter=all_teams_dd,current_period_filter=period_arg,current_team_id_filter=team_arg,current_search_term=search_arg,global_total_coachings_count=global_total_coachings,global_time_coached_display=global_time_display,month_options=m_opts,config=current_app.config)
+    
+    return render_template('main/index.html',
+                           title='Coaching - Dashboard',
+                           coachings_paginated=coachings_page,
+                           total_coachings=total_filtered_list,
+                           chart_labels=chart_perf['labels'],
+                           chart_avg_performance_mark_percentage=chart_perf['avg_performance_values'],
+                           chart_total_time_spent=chart_perf['total_time_spent_values'], # UPDATED: Pass total time
+                           chart_coachings_done=chart_perf['coachings_done_values'],
+                           subject_chart_labels=chart_subj['labels'],
+                           subject_chart_values=chart_subj['values'],
+                           all_teams_for_filter=all_teams_dd,
+                           current_period_filter=period_arg,
+                           current_team_id_filter=team_arg,
+                           current_search_term=search_arg,
+                           global_total_coachings_count=global_total_coachings,
+                           global_time_coached_display=global_time_display,
+                           month_options=m_opts,
+                           config=current_app.config)
 
 @bp.route('/team_view', methods=['GET'])
 @login_required
@@ -113,20 +159,16 @@ def team_view():
             flash("Zugewiesenes Team nicht gefunden.", "danger")
             return redirect(url_for('main.index'))
     elif view_team_id_arg:
-        # Admins, PLs, Abteilungsleiter, QMs, SalesCoaches, Trainers can view any team if team_id is provided
         if current_user.role not in [ROLE_ADMIN, ROLE_PROJEKTLEITER, ROLE_ABTEILUNGSLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER]: 
-            abort(403) # Teamleiters cannot switch teams via URL unless they are also one of the above
+            abort(403) 
         selected_team_object = Team.query.get(view_team_id_arg)
         if selected_team_object: 
             page_title = f"Team Ansicht: {selected_team_object.name}"
-        # If team not found, selected_team_object will be None, handled below
-    else: # No team_id in URL, and user is not a Teamleiter viewing their own team
+    else: 
         if current_user.role in [ROLE_ADMIN, ROLE_PROJEKTLEITER, ROLE_ABTEILUNGSLEITER, ROLE_QM, ROLE_SALESCOACH, ROLE_TRAINER]:
-            # For these roles, if no team_id is specified, show the first team by name as a default
             selected_team_object = Team.query.order_by(Team.name).first()
             if selected_team_object: 
                 page_title = f"Team Ansicht: {selected_team_object.name}"
-            # If no teams exist, selected_team_object will be None, handled below
 
     if not selected_team_object:
         flash("Kein Team zum Anzeigen ausgewählt oder vorhanden.", "info")
@@ -141,7 +183,6 @@ def team_view():
                                team_coachings=[], 
                                config=current_app.config)
 
-    # If selected_team_object is valid, proceed:
     team_member_ids_in_selected_team = [member.id for member in selected_team_object.members]
     if team_member_ids_in_selected_team:
         team_coachings_list_for_display = Coaching.query.filter(
@@ -150,23 +191,17 @@ def team_view():
 
     for member in selected_team_object.members.all(): 
         member_coachings_list = Coaching.query.filter_by(team_member_id=member.id).all()
-        
         avg_score_val = sum(c.overall_score for c in member_coachings_list) / len(member_coachings_list) if member_coachings_list else 0.0
-        
         leitfaden_adherences_percentages = [
             c.leitfaden_erfuellung_prozent for c in member_coachings_list if c.leitfaden_erfuellung_prozent is not None
         ]
         avg_leitfaden_adherence_val = sum(leitfaden_adherences_percentages) / len(leitfaden_adherences_percentages) if leitfaden_adherences_percentages else 0.0
-        
         total_coaching_time_minutes_val = sum(c.time_spent for c in member_coachings_list if c.time_spent is not None)
         hours = total_coaching_time_minutes_val // 60
         minutes = total_coaching_time_minutes_val % 60
         formatted_time_str = f"{hours} Std. {minutes} Min."
-        
         team_members_stats.append({
-            'id': member.id,
-            'name': member.name, 
-            'avg_score': round(avg_score_val, 2), 
+            'id': member.id, 'name': member.name, 'avg_score': round(avg_score_val, 2), 
             'avg_leitfaden_adherence': round(avg_leitfaden_adherence_val, 1), 
             'total_coachings': len(member_coachings_list), 
             'raw_total_coaching_time': total_coaching_time_minutes_val, 
@@ -178,8 +213,7 @@ def team_view():
         all_teams_for_dropdown = Team.query.order_by(Team.name).all()
         
     return render_template('main/team_view.html', 
-                           title=page_title, 
-                           team=selected_team_object, 
+                           title=page_title, team=selected_team_object, 
                            team_coachings=team_coachings_list_for_display, 
                            team_members_performance=team_members_stats, 
                            all_teams_list=all_teams_for_dropdown, 
@@ -231,21 +265,20 @@ def edit_coaching(coaching_id):
     tcap_js="document.addEventListener('DOMContentLoaded',function(){var s=document.getElementById('coaching_style'),t=document.getElementById('tcap_id_field'),i=document.getElementById('tcap_id');function o(){if(s&&t&&i)if(s.value==='TCAP'){t.style.display='';i.required=!0}else{t.style.display='none';i.required=!1}}s&&t&&i&&(s.addEventListener('change',o),o())});"
     return render_template('main/add_coaching.html',title=f'Coaching ID {coaching_to_edit.id} Bearbeiten',form=form,is_edit_mode=True,coaching=coaching_to_edit, coaching_id_being_edited=coaching_to_edit.id,tcap_js=tcap_js,config=current_app.config)
 
-@bp.route('/coaching_review_dashboard', methods=['GET', 'POST']) # 'POST' is for the note form
+@bp.route('/coaching_review_dashboard', methods=['GET', 'POST']) 
 @login_required
 @role_required([ROLE_PROJEKTLEITER, ROLE_QM, ROLE_ABTEILUNGSLEITER])
 def pl_qm_dashboard():
     page = request.args.get('page', 1, type=int)
-    selected_team_id_filter_str = request.args.get('team_id_filter', None) # For the new team filter
+    selected_team_id_filter_str = request.args.get('team_id_filter', None) 
 
     coachings_paginated = Coaching.query.order_by(desc(Coaching.coaching_date)).paginate(page=page, per_page=10, error_out=False)
     note_form = ProjectLeaderNoteForm()
-    title = "Notizen Dashboard" # Default title
+    title = "Notizen Dashboard" 
     if current_user.role == ROLE_QM: title = "Quality Coach Dashboard"
     elif current_user.role == ROLE_PROJEKTLEITER: title = "Projektleiter Dashboard"
     elif current_user.role == ROLE_ABTEILUNGSLEITER: title = "Abteilungsleiter Dashboard"
 
-    # --- POST request handling for notes ---
     if request.method == 'POST' and 'submit_note' in request.form:
         form_val = ProjectLeaderNoteForm(request.form)
         coaching_id_str = request.form.get('coaching_id')
@@ -264,13 +297,10 @@ def pl_qm_dashboard():
         else:
             for f, errs in form_val.errors.items():
                 flash(f"Validierungsfehler '{form_val[f].label.text}': {'; '.join(errs)}", 'danger')
-        # Redirect to the same page, preserving pagination and new team filter
         return redirect(url_for('main.pl_qm_dashboard', 
-                                page=request.args.get('page',1,type=int), # Preserve original page from args if submitting note
+                                page=request.args.get('page',1,type=int), 
                                 team_id_filter=selected_team_id_filter_str))
 
-
-    # --- Data for Top/Flop Teams ---
     all_teams_data = []
     for team_obj_stat_loop in Team.query.all():
         stats = db.session.query(
@@ -280,8 +310,7 @@ def pl_qm_dashboard():
         ).join(TeamMember, Coaching.team_member_id == TeamMember.id)\
          .filter(TeamMember.team_id == team_obj_stat_loop.id).first()
         all_teams_data.append({
-            'id': team_obj_stat_loop.id,
-            'name': team_obj_stat_loop.name,
+            'id': team_obj_stat_loop.id, 'name': team_obj_stat_loop.name,
             'num_coachings': stats.num_coachings if stats else 0,
             'avg_score': round(stats.avg_perf, 2) if stats else 0,
             'total_time': stats.total_time if stats else 0
@@ -291,7 +320,6 @@ def pl_qm_dashboard():
     teams_c = [t for t in all_teams_data if t.get('num_coachings', 0) > 0]
     flop_3 = sorted(teams_c, key=lambda x: (x.get('avg_score', 0), -x.get('num_coachings', 0)))[:3] if teams_c else []
 
-    # --- NEW: Data for Team Filter and Member Cards ---
     all_teams_for_filter_dropdown = Team.query.order_by(Team.name).all()
     selected_team_object_for_cards = None
     members_data_for_cards = []
@@ -299,92 +327,54 @@ def pl_qm_dashboard():
     if selected_team_id_filter_str and selected_team_id_filter_str.isdigit():
         selected_team_id = int(selected_team_id_filter_str)
         selected_team_object_for_cards = Team.query.get(selected_team_id)
-
         if selected_team_object_for_cards:
             for member in selected_team_object_for_cards.members.all(): 
                 member_coachings_list = Coaching.query.filter_by(team_member_id=member.id).all()
-                
                 avg_score_val = sum(c.overall_score for c in member_coachings_list) / len(member_coachings_list) if member_coachings_list else 0.0
-                
                 leitfaden_adherences_percentages = [
                     c.leitfaden_erfuellung_prozent for c in member_coachings_list if c.leitfaden_erfuellung_prozent is not None
                 ]
                 avg_leitfaden_adherence_val = sum(leitfaden_adherences_percentages) / len(leitfaden_adherences_percentages) if leitfaden_adherences_percentages else 0.0
-
                 total_coaching_time_minutes_val = sum(c.time_spent for c in member_coachings_list if c.time_spent is not None)
-                hours = total_coaching_time_minutes_val // 60
-                minutes = total_coaching_time_minutes_val % 60
+                hours = total_coaching_time_minutes_val // 60; minutes = total_coaching_time_minutes_val % 60
                 formatted_time_str = f"{hours} Std. {minutes} Min."
-                
                 members_data_for_cards.append({
-                    'id': member.id, 
-                    'name': member.name, 
+                    'id': member.id, 'name': member.name, 
                     'avg_score': round(avg_score_val, 2), 
                     'avg_leitfaden_adherence': round(avg_leitfaden_adherence_val, 1),
                     'total_coachings': len(member_coachings_list), 
                     'raw_total_coaching_time': total_coaching_time_minutes_val, 
                     'formatted_total_coaching_time': formatted_time_str
                 })
-
     return render_template('main/projektleiter_dashboard.html',
-                           title=title,
-                           coachings_paginated=coachings_paginated,
-                           note_form=note_form,
-                           top_3_teams=top_3,
-                           flop_3_teams=flop_3,
+                           title=title, coachings_paginated=coachings_paginated,
+                           note_form=note_form, top_3_teams=top_3, flop_3_teams=flop_3,
                            all_teams_for_filter=all_teams_for_filter_dropdown, 
                            selected_team_id_filter=selected_team_id_filter_str, 
                            selected_team_object_for_cards=selected_team_object_for_cards, 
                            members_data_for_cards=members_data_for_cards, 
                            config=current_app.config)
 
-
-# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-# API ENDPOINT FOR MEMBER COACHING TREND
-# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 @bp.route('/api/member_coaching_trend', methods=['GET'])
 @login_required 
 def get_member_coaching_trend():
     team_member_id_str = request.args.get('team_member_id')
     count_str = request.args.get('count', '10') 
-
-    if not team_member_id_str:
-        return jsonify({"error": "Team Member ID (team_member_id) is required"}), 400
-    
-    try:
-        team_member_id = int(team_member_id_str)
-    except ValueError:
-        return jsonify({"error": "Invalid Team Member ID format"}), 400
-
-    query = Coaching.query.filter_by(team_member_id=team_member_id) \
-                          .order_by(Coaching.coaching_date.desc()) 
-
+    if not team_member_id_str: return jsonify({"error": "Team Member ID (team_member_id) is required"}), 400
+    try: team_member_id = int(team_member_id_str)
+    except ValueError: return jsonify({"error": "Invalid Team Member ID format"}), 400
+    query = Coaching.query.filter_by(team_member_id=team_member_id).order_by(Coaching.coaching_date.desc()) 
     if count_str.lower() != 'all':
         try:
             count = int(count_str)
-            if count <= 0:
-                 return jsonify({"error": "Count must be a positive integer or 'all'"}), 400
+            if count <= 0: return jsonify({"error": "Count must be a positive integer or 'all'"}), 400
             query = query.limit(count)
-        except ValueError:
-            return jsonify({"error": "Invalid count format"}), 400
-    
-    recent_coachings = query.all()
-    recent_coachings.reverse() 
-
-    if not recent_coachings:
-        return jsonify({"labels": [], "scores": [], "dates": []})
-
-    labels = [] 
-    scores = [] 
-    dates = []  
-    
+        except ValueError: return jsonify({"error": "Invalid count format"}), 400
+    recent_coachings = query.all(); recent_coachings.reverse() 
+    if not recent_coachings: return jsonify({"labels": [], "scores": [], "dates": []})
+    labels = []; scores = []; dates = []  
     for i, coaching in enumerate(recent_coachings):
         labels.append(f"Coaching {i+1}") 
         scores.append(coaching.overall_score if coaching.overall_score is not None else 0)
         dates.append(coaching.coaching_date.strftime('%d.%m.%y'))
-
-    return jsonify({
-        "labels": labels, 
-        "scores": scores,
-        "dates": dates    
-    })
+    return jsonify({"labels": labels, "scores": scores, "dates": dates})
