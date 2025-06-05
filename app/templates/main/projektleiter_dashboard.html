@@ -139,7 +139,7 @@
                         <h5 class="card-title text-center">{{ member_stat.name }}</h5>
                         
                         <div class="stat-group text-center">
-                            <div class="stat-label">Durchschnittlicher Score</div>
+                            <div class="stat-label">Performance Score</div>
                             <div class="progress mx-auto" style="max-width: 180px;">
                                 <div class="progress-bar {% if member_stat.avg_score == 0 and member_stat.total_coachings == 0 %}bg-secondary{% elif member_stat.avg_score >= (config.PERFORMANCE_BENCHMARK or 80) %}bg-success{% elif member_stat.avg_score >= 50 %}bg-warning{% else %}bg-danger{% endif %}" 
                                      role="progressbar" 
