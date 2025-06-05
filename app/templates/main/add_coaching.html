@@ -6,9 +6,10 @@
     {# Title changes based on mode #}
     <h2>{{ title if title else ('Coaching Bearbeiten' if is_edit_mode else 'Coaching Hinzufügen') }}</h2>
 
-    {# Form action changes based on mode #}
+    {# <<< KORREKTUR: Die Formular-Aktion wird jetzt intelligent erstellt >>> #}
+    {# Sie prüft, von welcher Route sie aufgerufen wurde (admin oder main) #}
     <form method="POST" 
-          action="{{ url_for('main.edit_coaching', coaching_id=coaching_id_being_edited, next=request.args.get('next')) if is_edit_mode else url_for('main.add_coaching') }}" novalidate>
+          action="{% if request.endpoint == 'admin.edit_coaching_entry' %}{{ url_for('admin.edit_coaching_entry', coaching_id=coaching.id, next=request.args.get('next')) }}{% elif is_edit_mode %}{{ url_for('main.edit_coaching', coaching_id=coaching.id, next=request.args.get('next')) }}{% else %}{{ url_for('main.add_coaching') }}{% endif %}" novalidate>
         
         {{ form.hidden_tag() }} {# Includes CSRF token if Flask-WTF is configured #}
 
