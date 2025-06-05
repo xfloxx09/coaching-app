@@ -14,16 +14,12 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(256), nullable=True)
     role = db.Column(db.String(20), nullable=False, default='Teammitglied')
     team_id_if_leader = db.Column(db.Integer, db.ForeignKey('teams.id', name='fk_user_team_id_if_leader'), nullable=True) 
-    
-    # Renamed backref for clarity
-    coachings_done = db.relationship('Coaching', foreign_keys='Coaching.coach_id', backref='coach_user_object', lazy='dynamic')
+    coachings_done = db.relationship('Coaching', foreign_keys='Coaching.coach_id', backref='coach', lazy='dynamic')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
-        if not self.password_hash: # Handle users without a password_hash
-            return False
         return check_password_hash(self.password_hash, password)
 
     def __repr__(self):
@@ -38,19 +34,12 @@ class Team(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
     team_leader_id = db.Column(db.Integer, db.ForeignKey('users.id', name='fk_team_team_leader_id'), nullable=True)
-    
     team_leader = db.relationship(
         'User', 
         foreign_keys=[team_leader_id], 
         backref=db.backref('led_team_obj', uselist=False, lazy='joined')
     )
-    
-    # This relationship gets members CURRENTLY assigned to this team (team_id matches)
-    # This is used to display current team rosters.
-    members = db.relationship('TeamMember', 
-                              foreign_keys='TeamMember.team_id', 
-                              backref='current_team', # From TeamMember, gets the current Team object
-                              lazy='dynamic')
+    members = db.relationship('TeamMember', backref='team', lazy='dynamic')
     def __repr__(self):
         return f'<Team {self.name}>'
 
@@ -58,28 +47,17 @@ class TeamMember(db.Model):
     __tablename__ = 'team_members'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    
-    # *** UPDATED: team_id is now nullable ***
-    # This means a TeamMember can exist without being assigned to a current team (archived/inactive)
-    team_id = db.Column(db.Integer, db.ForeignKey('teams.id', name='fk_teammember_team_id'), nullable=True) 
-    
-    # This relationship fetches ALL coachings received by this TeamMember instance
-    # Renamed for clarity from 'coachings_received' to avoid confusion with model name.
-    all_coachings_for_this_member_record = db.relationship('Coaching', 
-                                                 foreign_keys='Coaching.team_member_id', 
-                                                 backref='coached_member_record', # From Coaching, get the specific TeamMember record
-                                                 lazy='dynamic')
+    team_id = db.Column(db.Integer, db.ForeignKey('teams.id', name='fk_teammember_team_id'), nullable=False)
+    coachings_received = db.relationship('Coaching', backref='team_member_coached', lazy='dynamic')
     def __repr__(self):
-        team_name_str = self.current_team.name if self.current_team else "Kein Team (Archiviert)"
-        return f'<TeamMember {self.name} (Team: {team_name_str})>'
+        return f'<TeamMember {self.name} (Team ID: {self.team_id})>'
 
 class Coaching(db.Model):
+    # ... (Felder bis project_leader_notes bleiben gleich) ...
     __tablename__ = 'coachings'
     id = db.Column(db.Integer, primary_key=True)
-    # team_member_id links to the specific TeamMember record that received the coaching
     team_member_id = db.Column(db.Integer, db.ForeignKey('team_members.id', name='fk_coaching_team_member_id'), nullable=False)
-    coach_id = db.Column(db.Integer, db.ForeignKey('users.id', name='fk_coaching_coach_id'), nullable=False) # Consider making nullable if User can be deleted
-    
+    coach_id = db.Column(db.Integer, db.ForeignKey('users.id', name='fk_coaching_coach_id'), nullable=False)
     coaching_date = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     coaching_style = db.Column(db.String(50), nullable=True)
     tcap_id = db.Column(db.String(50), nullable=True)
@@ -99,42 +77,64 @@ class Coaching(db.Model):
     project_leader_notes = db.Column(db.Text, nullable=True)
         
     @property
-    def leitfaden_fields_list(self):
+    def leitfaden_fields_list(self): # Hilfs-Property für die Leitfadenfelder
         return [
-            ("Begrüßung", self.leitfaden_begruessung), ("Legitimation", self.leitfaden_legitimation),
-            ("PKA", self.leitfaden_pka), ("KEK", self.leitfaden_kek), ("Angebot", self.leitfaden_angebot),
-            ("Zusammenfassung", self.leitfaden_zusammenfassung), ("KZB", self.leitfaden_kzb)
+            ("Begrüßung", self.leitfaden_begruessung),
+            ("Legitimation", self.leitfaden_legitimation),
+            ("PKA", self.leitfaden_pka),
+            ("KEK", self.leitfaden_kek),
+            ("Angebot", self.leitfaden_angebot),
+            ("Zusammenfassung", self.leitfaden_zusammenfassung),
+            ("KZB", self.leitfaden_kzb)
         ]
 
     @property
-    def leitfaden_counts(self):
-        ja_count, nein_count, ka_count = 0, 0, 0
+    def leitfaden_counts(self): # NEUE Property für die Zählung
+        ja_count = 0
+        nein_count = 0
+        ka_count = 0
         for _, value in self.leitfaden_fields_list:
-            if value == "Ja": ja_count += 1
-            elif value == "Nein": nein_count += 1
-            elif value == "k.A.": ka_count += 1
+            if value == "Ja":
+                ja_count += 1
+            elif value == "Nein":
+                nein_count += 1
+            elif value == "k.A.":
+                ka_count += 1
         return {'ja': ja_count, 'nein': nein_count, 'ka': ka_count}
 
     @property
     def leitfaden_erfuellung_display(self):
-        counts = self.leitfaden_counts; ja, nein, ka = counts['ja'], counts['nein'], counts['ka']
-        total_relevant = ja + nein
-        if total_relevant == 0: return f"N/A ({ka} k.A.)" if ka > 0 else "N/A"
+        counts = self.leitfaden_counts
+        ja = counts['ja']
+        nein = counts['nein']
+        ka = counts['ka']
+        
+        total_relevant = ja + nein # Nur "Ja" und "Nein" zählen für die Relevanz der Erfüllung
+        
+        if total_relevant == 0:
+            return f"N/A ({ka} k.A.)" if ka > 0 else "N/A"
+        
+        # Erfüllung als X/Y, und k.A. separat anzeigen
         return f"{ja}/{total_relevant} ({ka} k.A.)"
 
     @property
-    def leitfaden_erfuellung_prozent(self):
-        counts = self.leitfaden_counts; ja, nein, total_relevant = counts['ja'], counts['nein'], counts['ja'] + counts['nein']
-        if total_relevant == 0: return 0.0
+    def leitfaden_erfuellung_prozent(self): # Für interne Berechnungen, falls noch benötigt
+        counts = self.leitfaden_counts
+        ja = counts['ja']
+        nein = counts['nein']
+        total_relevant = ja + nein
+        if total_relevant == 0:
+            return 0.0 # Oder 100.0, je nach Definition, wenn nichts Relevantes bewertet wurde
         return (ja / total_relevant) * 100
 
     @property
-    def overall_score(self):
-        if self.performance_mark is None: return 0.0 
-        return round((float(self.performance_mark) / 10.0) * 100.0, 2)
+    def overall_score(self): # Basiert NUR auf performance_mark
+        if self.performance_mark is None:
+            return 0.0 
+        performance_percentage = (float(self.performance_mark) / 10.0) * 100.0
+        return round(performance_percentage, 2)
 
     def __repr__(self):
-        member_name = self.coached_member_record.name if self.coached_member_record else "Unknown Member"
-        return f'<Coaching {self.id} for {member_name} (M_ID:{self.team_member_id}) on {self.coaching_date.strftime("%Y-%m-%d")}>'
+        return f'<Coaching {self.id} for TeamMember {self.team_member_id} on {self.coaching_date}>'
 
 print("<<<< ENDE models.py (KORRIGIERTE VERSION) GELADEN >>>>")
