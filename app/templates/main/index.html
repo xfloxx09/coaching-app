@@ -172,7 +172,7 @@
                 <tbody>
                     {% for coaching in coachings_paginated.items %}
                     <tr>
-                        <td>{{ coaching.coaching_date|athens_time|date:"Y-m-d" }}</td>
+                        <td>{{ coaching.coaching_date|athens_time }}</td>
                         <td>{{ coaching.team_member_coached.name if coaching.team_member_coached else 'N/A' }}</td>
                         <td>{{ coaching.team_member_coached.team.name if coaching.team_member_coached and coaching.team_member_coached.team else 'N/A' }}</td>
                         <td>{{ coaching.coach.username if coaching.coach else 'N/A' }}</td>
