@@ -66,7 +66,7 @@ def get_performance_data_for_charts(period_filter_str=None, selected_team_id_str
     if selected_team_id_str and selected_team_id_str.isdigit():
         q = q.filter(Team.id == int(selected_team_id_str))
 
-   res = q.group_by(Team.id, Team.name).order_by(Team.name).all()
+    res = q.group_by(Team.id, Team.name).order_by(Team.name).all()
     avg_perf_pcnt = [round(r.avg_perf_mark * 10, 2) if r.avg_perf_mark is not None else 0 for r in res]
     total_time_spent_values_list = [r.total_time for r in res]
 
